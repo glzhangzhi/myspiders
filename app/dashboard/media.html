@@ -202,7 +202,7 @@ td.nowrap { white-space:nowrap; color:var(--text-dim); }
   </section>
 
   <section class="panel">
-    <h3>最近运行</h3>
+    <h3>最近运行<span class="spacer"></span><button class="btn btn-ghost" id="b-clear-runs" onclick="clearRuns()" title="删除运行记录（进行中的保留）">清空</button></h3>
     <div class="runs" id="runs"></div>
   </section>
 </main>
@@ -588,8 +588,12 @@ function renderItemBulk() {
     if (S.tab === 'skipped') parts.push(`<button class="btn btn-ghost" onclick="itemBatch('requeue')">加入队列</button>`);
     if (S.tab === 'done') parts.push(`<button class="btn btn-ghost" onclick="itemBatch('redo')">重下所选</button>`);
     parts.push('<span class="grow"></span>', `<button class="btn btn-ghost" onclick="selClear('items')">取消选择</button>`);
-  } else if (S.tab === 'failed' && (S.counts.failed || 0)) {
-    parts.push(`<button class="btn btn-ghost" onclick="requeueFailed()">全部重试</button>`);
+  } else {
+    if (S.tab === 'failed' && (S.counts.failed || 0)) parts.push(`<button class="btn btn-ghost" onclick="requeueFailed()">全部重试</button>`);
+    if ((S.tab === 'pending' || S.tab === 'failed') && (S.counts[S.tab] || 0)) {
+      const q = S.filter.trim();
+      parts.push('<span class="grow"></span>', `<button class="btn btn-ghost" onclick="clearTab()" title="移到「已跳过」，不删除；在那里可以加回队列">${q ? '清空筛选出的' : '清空'}${TABS.find(t => t[0] === S.tab)[1]}</button>`);
+    }
   }
   bar.innerHTML = parts.join(' ');
   bar.classList.toggle('show', parts.length > 0);
@@ -630,6 +634,26 @@ async function requeueFailed() {
   } catch (e) { showToast(e.message, 'err'); }
 }
 async function dlOne(id) { await startDownload([id]); }
+// 清空 = 移到「已跳过」：删掉的话下次检测会把它们重新插入成待下载（见 repo.skip_all）。
+// 有筛选词时只清筛选出来的那些，所见即所清。
+async function clearTab() {
+  const name = TABS.find(t => t[0] === S.tab)[1];
+  const q = S.filter.trim().toLowerCase();
+  const vis = q ? S.items.filter(it => (it.title || '').toLowerCase().includes(q) || (it.author || '').toLowerCase().includes(q) || (it.source_name || '').toLowerCase().includes(q)) : null;
+  const n = vis ? vis.length : (S.counts[S.tab] || 0);
+  if (!n) return;
+  if (!confirm(`把${vis ? '筛选出的' : '全部'} ${n} 个「${name}」移到「已跳过」？\n不会删除，之后可以在「已跳过」里加回队列。`)) return;
+  try {
+    const r = vis ? await post('/items/skip', { ids: vis.map(it => it.id) }) : await post('/items/clear', { status: S.tab });
+    showToast(`已移到「已跳过」${r.n} 个`, 'ok'); selClear('items'); loadItems(); loadStatus(); loadSources();
+  } catch (e) { showToast(e.message, 'err'); }
+}
+async function clearRuns() {
+  if (!S.runs.length) return;
+  if (!confirm('清空运行记录？（进行中的保留）')) return;
+  try { const r = await api('/runs', { method: 'DELETE' }); showToast(`已删除 ${r.n} 条`, 'ok'); loadRuns(); }
+  catch (e) { showToast(e.message, 'err'); }
+}
 
 // ── 运行 ────────────────────────────────────────────────────────────────
 function errMsg(e) { return e.detail && e.detail.offline ? '3060ti 离线：开机后再试' : e.message; }

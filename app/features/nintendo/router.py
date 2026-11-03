@@ -41,7 +41,7 @@ def list_discounts(
     records = _repo.fetch_all()
     discounted = [
         r for r in records.values()
-        if r.discount_percent >= min_discount and r.current_price < r.original_price
+        if r.on_sale and r.discount_percent >= min_discount and r.current_price < r.original_price
     ]
     if max_price is not None:
         discounted = [r for r in discounted if r.current_price <= max_price]
@@ -51,12 +51,12 @@ def list_discounts(
 
 @router.get("/discounts/new", summary="今日新增折扣")
 def list_new_discounts():
-    """列出今天更新的折扣游戏。"""
+    """今天开始打折、重新打折或降价的游戏（updated_at 只在这三种情况下变）。"""
     records = _repo.fetch_all()
     today = datetime.now(TZ_DE).date()
     new_discounts = [
         r for r in records.values()
-        if r.current_price < r.original_price
+        if r.on_sale and r.current_price < r.original_price
         and r.updated_at.astimezone(TZ_DE).date() == today
     ]
     new_discounts.sort(key=lambda r: r.discount_percent, reverse=True)

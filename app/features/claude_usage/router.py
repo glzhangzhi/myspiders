@@ -53,8 +53,3 @@ async def get_usage_history(
     days = max(1, min(days, 90))
     return claude_usage_manager.history_aggregate(view=view, window=window, days=days)
 
-
-@router.get("/predict", summary="预测窗口结束时的 Claude 利用率")
-async def get_usage_predict(request: Request):
-    _verify_token(request)
-    return claude_usage_manager.predict()

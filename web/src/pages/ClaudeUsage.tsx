@@ -8,7 +8,6 @@ import { Bars } from '../ui/chart';
 
 interface Limit { kind: string; percent: number; severity?: string; resets_at?: string; scope?: { model?: { display_name?: string } } | null }
 interface Usage { ok: boolean; fetched_at?: number; last_error?: string | null; data?: { limits?: Limit[]; five_hour?: { utilization: number; resets_at: string }; seven_day?: { utilization: number; resets_at: string } } }
-interface Predict { ok: boolean; windows?: { label: string; predicted_end: number; severity: string; eta_100?: number; method: string; confidence: number }[] }
 interface Hist { view: string; buckets?: { label: string; value: number }[]; grid?: number[][]; weekdays?: string[] }
 
 function label(l: Limit) {
@@ -26,14 +25,13 @@ function tone(l: Limit): 'green' | 'yellow' | 'red' {
 
 export function ClaudeUsagePage() {
   const usage = useQuery<Usage>('/api/claude-usage', { refreshMs: 60_000 });
-  const pred = useQuery<Predict>('/api/claude-usage/predict', { refreshMs: 60_000 });
   const [view, setView] = useState<'hour' | 'weekday' | 'date' | 'heatmap'>('hour');
   const [win, setWin] = useState('5h');
   const hist = useQuery<Hist>(`/api/claude-usage/history?view=${view}&window=${win}&days=30`, { staleMs: 120_000 });
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
     setBusy(true);
-    try { await api('/api/claude-usage/refresh', { method: 'POST' }); mutateKey('/api/claude-usage'); mutateKey('/api/claude-usage/predict'); }
+    try { await api('/api/claude-usage/refresh', { method: 'POST' }); mutateKey('/api/claude-usage'); }
     catch (e) { toastError(e); } finally { setBusy(false); }
   };
   return (
@@ -59,17 +57,6 @@ export function ClaudeUsagePage() {
                   {l.resets_at && <div class="small muted" style={{ marginTop: 3 }}>{fmtDE(l.resets_at)} 重置（{fmtRel(l.resets_at)}）</div>}
                 </div>
               ))}
-              {pred.data?.ok && !!pred.data.windows?.length && (
-                <div class="col small" style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                  <span class="muted">🔮 预测（窗口结束时）</span>
-                  {pred.data.windows.map((w) => {
-                    const c = w.severity === 'high' ? 'red' : w.severity === 'warning' ? 'yellow' : 'green';
-                    const m = w.method === 'linear' ? '线性' : w.method === 'historical' ? '历史' : `混合 ${Math.round(w.confidence * 100)}%`;
-                    return <div key={w.label}>{w.label}窗口结束预计 ≈ <b style={{ color: `var(--${c})` }}>{w.predicted_end}%</b>
-                      {w.eta_100 && <span style={{ color: 'var(--red)' }}> · ⚠️ 约 {fmtDE(w.eta_100)} 触顶</span>} <span class="muted">（{m}）</span></div>;
-                  })}
-                </div>
-              )}
             </div>
           );
         }}</Async>

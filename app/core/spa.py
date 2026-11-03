@@ -1,7 +1,7 @@
 """新前端（web/ 构建产物 app/dashboard/dist）的静态服务。
 
   * `/dashboard/assets/*`：文件名带内容哈希 → 一年 immutable 缓存，二次打开零请求。
-  * `/dashboard/theme.css`：配色的单一事实来源，旧页面与计时 PWA 也 <link> 它 → no-cache。
+  * `/dashboard/theme.css`：配色的单一事实来源，旧页面也 <link> 它 → no-cache。
   * `/dashboard` 与 `/dashboard/<任意路由>`：回 index.html（no-cache），由前端路由接管。
     旧面板的整页 URL（/dashboard/av 等）因此天然变成新外壳里的同名页面，书签不失效。
 

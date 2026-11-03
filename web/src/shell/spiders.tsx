@@ -50,7 +50,7 @@ export function statusOf(s: Spider): { tone: 'green' | 'red' | 'yellow' | undefi
   }
 }
 
-const CATS: Record<string, string> = { monitor: '监控', system: '系统', claude: 'Claude', nintendo: 'Nintendo', software: '软件', av: '影片', timelog: '计时', media: '媒体', general: '通用' };
+const CATS: Record<string, string> = { monitor: '监控', system: '系统', claude: 'Claude', nintendo: 'Nintendo', software: '软件', av: '影片', media: '媒体', general: '通用' };
 
 export function SpidersDrawer(p: { onClose: () => void; conn: string }) {
   const [cat, setCat] = useState('all');

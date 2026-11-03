@@ -206,6 +206,17 @@ class MediaRepo:
         extra = {"error": None} if status == R.PENDING else {}
         return self.items.update_many(q, {"$set": {"status": status, **extra}}).modified_count
 
+    def skip_all(self, status: str) -> int:
+        """「清空」待下载 / 失败 = 整批改成已跳过，**不删**。
+
+        删掉的话下次检测会把它们当新条目重新插入成待下载（状态只在插入时写），
+        清空等于没清；改成已跳过既稳定，又能在「已跳过」里找回来。
+        """
+        if status not in (R.PENDING, R.FAILED):
+            raise ValueError(status)
+        return self.items.update_many({"status": status},
+                                      {"$set": {"status": R.SKIPPED}}).modified_count
+
     def requeue_failed(self) -> int:
         return self.items.update_many({"status": R.FAILED},
                                       {"$set": {"status": R.PENDING, "error": None}}).modified_count
@@ -235,6 +246,10 @@ class MediaRepo:
 
     def recent_runs(self, limit: int = 15) -> list[dict]:
         return list(self.runs.find({}, {"log": {"$slice": -40}}).sort("started_at", DESCENDING).limit(limit))
+
+    def clear_runs(self) -> int:
+        """删掉运行记录，正在跑的那条留着（进度条和「停止」都靠它）。"""
+        return self.runs.delete_many({"status": {"$ne": "running"}}).deleted_count
 
     def running_run(self) -> Optional[dict]:
         return self.runs.find_one({"status": "running"}, sort=[("started_at", DESCENDING)])

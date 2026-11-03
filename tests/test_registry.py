@@ -11,7 +11,7 @@ def test_modules_endpoint_lists_nav_from_registry():
     r = TestClient(app).get("/api/modules")
     assert r.status_code == 200
     mods = {m["id"]: m for m in r.json()["modules"]}
-    for must in ("system", "recipe", "qimen", "nintendo", "timelog"):
+    for must in ("system", "recipe", "qimen", "nintendo", "finance"):
         assert must in mods, must
     nav_ids = [n["id"] for m in mods.values() for n in m["nav"]]
     assert len(nav_ids) == len(set(nav_ids)), "导航 id 重复"

@@ -5,7 +5,7 @@
 [![CI](https://github.com/glzhangzhi/myspiders/actions/workflows/ci.yml/badge.svg)](https://github.com/glzhangzhi/myspiders/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-一个自托管、单人自用的管理面板：把散落各处的小爬虫、监控和自动化收进**一个进程、一个调度器、一个界面** —— 价格监控、LLM 花费统计、能推送到 Kindle 的菜谱库、SillyTavern 资料浏览、AI 小镇模拟、手机计时 PWA 等等。告警统一走 [ntfy](https://ntfy.sh) 推到手机。
+一个自托管、单人自用的管理面板：把散落各处的小爬虫、监控和自动化收进**一个进程、一个调度器、一个界面** —— 价格监控、LLM 花费统计、能推送到 Kindle 的菜谱库、SillyTavern 资料浏览等等。告警统一走 [ntfy](https://ntfy.sh) 推到手机。
 
 核心是一个**模块注册表**：每个功能都是 `app/features/<id>/` 下一个自包含的包，自己声明路由、定时任务、生命周期钩子和导航入口。核心代码不认识任何具体功能 —— 加功能就是加一个目录，删功能就是删一个目录。
 
@@ -23,13 +23,11 @@
 | **系统** | 爬虫管理（SSE 实时状态，启停 / 立即运行）、磁盘 / MongoDB / Google Drive 用量、每日备份（`mongodump` + `rclone`）、手动推送、一键重启服务 |
 | **Nintendo** | 追踪港服 eShop 价格，标出今日新增折扣，浏览器内筛选排序；搜索支持简体（服务端转繁体） |
 | **Joybuy** | 盯一个商品的价格，三个独立价格源必须互证，解析失败绝不兜底成 0 |
-| **Claude 用量** | 自适应轮询 Claude 账户用量（闲时 30 分钟、逼近上限 5 分钟），预测窗口结束时的用量，热力图看额度花在什么时段 |
+| **Claude 用量** | 自适应轮询 Claude 账户用量（闲时 30 分钟、逼近上限 5 分钟），热力图看额度花在什么时段 |
 | **LLM 用量** | 汇总多个本地 LLM 前端的 token 消耗，按模型计价、按项目归类 |
 | **菜谱** | 菜谱库（导入 [HowToCook](https://github.com/Anduin2017/HowToCook)）、标签词表、DeepSeek 把随手写的菜谱转成结构化格式、购物清单、经 SSH 推送到装了 KOReader 的 Kindle |
 | **账单** | 导入 N26 对账单 PDF，余额勾稽不平就拒绝入库，按规则自动分类、可逐条改 |
 | **酒馆资料** | 只读浏览 SillyTavern 的角色卡 / 世界书 / 预设与聊天导出；写操作一律走 `tavern_sync` |
-| **AI 小镇** | 酒馆角色卡住进同一个小镇，一步 = 一天（选地点 → 按地点演一场戏 → 写日记，日记即记忆） |
-| **计时** | 可安装到手机的 PWA，只存不可变的操作日志、记录由重放得到；服务端推送空闲 / 超时提醒 |
 | **下载** | 在另一台 Windows 机器上检测关注的视频号作者 / YouTube 列表的新内容，按需下载 |
 | **奇门遁甲** | 时家奇门排盘 |
 
@@ -41,7 +39,7 @@
 | 调度 | **APScheduler**（`AsyncIOScheduler`），启停状态持久化在 MongoDB |
 | 存储 | **MongoDB 8**（PyMongo） |
 | 抓取 | httpx、requests、**Playwright**（无头 Chromium） |
-| AI | DeepSeek API（菜谱转换、AI 小镇）、Anthropic 用量接口 |
+| AI | DeepSeek API（菜谱转换）、Anthropic 用量接口 |
 | 前端 | **Vite 6**、**Preact 10** + **TypeScript 5**、@preact/signals、preact-iso 路由、**uPlot**（图表按需加载） |
 | 测试 | pytest（500+ 个用例，少数需要本地 MongoDB）、Vitest、Playwright 冒烟测试 |
 | 运维 | systemd、ntfy、rclone → Google Drive，前面挂带访问控制的反向代理 / 隧道 |

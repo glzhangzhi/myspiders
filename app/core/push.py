@@ -41,7 +41,7 @@ ntfy 的官方描述（"高优先级会震动久一点"之类）在这里**没�
 
 注意 `priority=None` **等于 default**（本模块不塞该字段，服务端按 3 处理），
 所以「不写 priority」不是中立选择，而是选中了最差的一档。**每个调用点都要
-显式写 priority。** 同理，封装通知的辅助函数（如 timelog_remind 里的那些）
+显式写 priority。** 同理，封装通知的辅助函数
 签名默认值要挑 `low` 这种不打扰的一端。
 
 ── 另一条：「没消息」不要推通知 ──
@@ -62,8 +62,7 @@ eShop 原先每天 20:00 雷打不动推一条「本日无新折扣」。它不�
       nintendo    eShop 折扣
       claude      Claude 用量预警
 
-    配在各功能 settings 里（可改）：`*_ntfy_topic`，如 timelog_ntfy_topic = timelog
-    （计时的空闲 / 超时提醒）、media_ntfy_topic = media、joybuy_ntfy_topic。
+    配在各功能 settings 里（可改）：`*_ntfy_topic`，如 media_ntfy_topic = media、joybuy_ntfy_topic。
 
 已知待办：`spider` 是个杂物抽屉，把「服务坏了」和「例行跑完了」混在一个 topic
 里，导致没法在 ntfy 客户端里单独给故障类设铃声。拆分需要机主新订阅一个 topic，

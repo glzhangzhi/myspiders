@@ -15,7 +15,7 @@
  *   <link rel="stylesheet" href="/dashboard/theme.css">
  *
  * 文件位置：web/public/theme.css。Vite 原样拷贝到构建产物根目录，所以 URL 仍是
- * /dashboard/theme.css —— 旧页面、计时 PWA 与新前端共用这一份。
+ * /dashboard/theme.css —— 旧页面与新前端共用这一份。
  *
  * 三种模式：默认深色；<html data-theme="light"> 浅色；data-theme="auto" 跟随系统。
  * 旧页面（iframe 内）由外壳同步 data-theme，见 web/src/lib/theme.ts。

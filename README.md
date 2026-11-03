@@ -5,7 +5,7 @@
 [![CI](https://github.com/glzhangzhi/myspiders/actions/workflows/ci.yml/badge.svg)](https://github.com/glzhangzhi/myspiders/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A self-hosted, single-user dashboard that gathers my scattered scrapers, monitors and small automations into **one process, one scheduler and one UI** — price watches, LLM spending, a recipe library that pushes to a Kindle, a SillyTavern asset browser, an AI "town" simulation, a phone time-tracker, and more. Notifications go out through [ntfy](https://ntfy.sh).
+A self-hosted, single-user dashboard that gathers my scattered scrapers, monitors and small automations into **one process, one scheduler and one UI** — price watches, LLM spending, a recipe library that pushes to a Kindle, a SillyTavern asset browser, and more. Notifications go out through [ntfy](https://ntfy.sh).
 
 It is built around a **module registry**: every feature is a self-contained package under `app/features/<id>/` that declares its routes, scheduled jobs, lifecycle hooks and navigation entry. The core knows nothing about individual features, so adding one is "add a directory", and removing one is "delete a directory".
 
@@ -23,13 +23,11 @@ It is built around a **module registry**: every feature is a self-contained pack
 | **System** | Job manager with live status over SSE (enable / disable / run now), disk / MongoDB / Google Drive usage, daily backup (`mongodump` + `rclone`), manual ntfy push, one-click service restart |
 | **Nintendo** | Tracks the Hong Kong eShop, highlights new discounts, client-side filtering and sorting; search accepts Simplified Chinese (converted to Traditional server-side) |
 | **Joybuy** | Watches a single product's price from three independent sources that must agree; never falls back to `0` on a parse failure |
-| **Claude usage** | Polls the Claude account usage API adaptively (30 min when idle, 5 min near a limit), predicts end-of-window utilisation, heatmaps of when quota is spent |
+| **Claude usage** | Polls the Claude account usage API adaptively (30 min when idle, 5 min near a limit), heatmaps of when quota is spent |
 | **LLM usage** | Ingests token usage from several local LLM front-ends and prices it per model, grouped by project |
 | **Recipes** | Recipe library (imports [HowToCook](https://github.com/Anduin2017/HowToCook)), tag vocabulary, AI conversion of free-form recipes via DeepSeek, shopping list, push to a Kindle running KOReader over SSH |
 | **Finance** | Imports N26 PDF statements, refuses to import if the balances do not reconcile, rule-based categorisation you can override per transaction |
 | **Tavern** | Read-only browser for SillyTavern character cards / lorebooks / presets and chat export; writes go through `tavern_sync` |
-| **AI Town** | Characters from SillyTavern cards live in a shared town, one step = one day (pick a place → act out a scene → write a diary that becomes memory) |
-| **Timelog** | Installable phone PWA for time tracking with an append-only operation log; the server sends idle / overtime reminders |
 | **Media** | Detects new videos from followed channels / playlists on a remote Windows machine and downloads them on demand |
 | **Qimen** | Qimen Dunjia (奇门遁甲) chart calculation |
 
@@ -41,7 +39,7 @@ It is built around a **module registry**: every feature is a self-contained pack
 | Scheduling | **APScheduler** (`AsyncIOScheduler`), enable state persisted in MongoDB |
 | Storage | **MongoDB 8** via PyMongo |
 | Scraping | httpx, requests, **Playwright** (headless Chromium) |
-| AI | DeepSeek API (recipe conversion, AI town), Anthropic usage API |
+| AI | DeepSeek API (recipe conversion), Anthropic usage API |
 | Frontend | **Vite 6**, **Preact 10** + **TypeScript 5**, @preact/signals, preact-iso router, **uPlot** (lazy-loaded charts) |
 | Testing | pytest (500+ tests; a throwaway MongoDB for a few repo tests), Vitest, Playwright smoke tests |
 | Ops | systemd, ntfy, rclone → Google Drive, a reverse proxy / tunnel with access control in front |

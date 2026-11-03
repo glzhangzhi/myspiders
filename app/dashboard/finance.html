@@ -140,7 +140,11 @@ select { cursor:pointer; }
 /* ── 柱状图 ── */
 .chart { display:flex; align-items:flex-end; gap:8px; height:230px; padding-top:8px; }
 .bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
-.bar-stack { width:100%; max-width:64px; display:flex; flex-direction:column-reverse;
+.bar-box { position:relative; width:100%; max-width:64px; display:flex; flex-direction:column; justify-content:flex-end; }
+/* 近 3 月移动均值：用正文色，任何主题、任何类别色上都看得见 */
+.bar-mav { position:absolute; left:-4px; right:-4px; height:0; border-top:2px dashed var(--text);
+  opacity:.8; pointer-events:none; z-index:3; }
+.bar-stack { width:100%; display:flex; flex-direction:column-reverse;
   border-radius:4px 4px 0 0; overflow:hidden; position:relative; cursor:pointer; }
 .bar-stack > div { width:100%; min-height:0; transition:opacity .15s; }
 .bar-stack:hover > div { opacity:.82; }
@@ -878,7 +882,26 @@ function pickMonths(mode) {
   renderSummary();
 }
 
+/* 对比月份记在浏览器里。连同「存的时候有哪些月份」一起存：之后新导入的月份
+   不在 known 里，默认勾上 —— 否则导入新月份后它在汇总里不出现，看起来像没导进来；
+   而 known 里但没勾的，是刻意取消的，保持不勾。 */
+const SUM_KEY = 'finance-sum-months';
+function saveSumMonths() {
+  try { localStorage.setItem(SUM_KEY, JSON.stringify({sel: [...sumMonths], known: MONTHS})); } catch {}
+}
+function loadSumMonths() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SUM_KEY) || 'null');
+    if (s && Array.isArray(s.sel) && Array.isArray(s.known)) {
+      const sel = new Set(s.sel), known = new Set(s.known);
+      return new Set(MONTHS.filter(m => sel.has(m) || !known.has(m)));
+    }
+  } catch {}
+  return new Set(MONTHS);
+}
+
 function renderSummary() {
+  if (MONTHS.length) saveSumMonths();
   renderMonthChips('sum-months', 'sum');
   const {months, list} = sumData();
   const note = document.getElementById('sum-scope-note');
@@ -999,12 +1022,15 @@ function renderStack(months) {
     const segs = cats.filter(c => d.parts[c]).map(c =>
       `<div style="height:${d.parts[c]/max*H}px;background:${catColor(c)}" title="${esc(c)} ${eur(d.parts[c])}"></div>`).join('');
     const my = mav[i] / max * H;
+    // 均值线不能放进 .bar-stack：它 overflow:hidden（圆角裁切用），均值 ≥ 当月合计时
+    // 线落在柱顶之外被整条裁掉 —— 第一个月恒等于自身、支出回落的月份也都如此；
+    // 原来写死的近白色在浅色主题上又看不见，结果是「说有虚线，一条都看不到」。
+    // 所以外面包一层不裁切的定位容器，高度取柱高与均值的较大者。
     return `<div class="bar-wrap" title="${d.month} 合计 ${eur(d.total)}\n近3月均值 ${eur(mav[i])}">
       <div class="bar-val">${eur0(d.total)}</div>
-      <div class="bar-stack" style="height:${Math.max(h,2)}px">
-        ${segs}
-        <div style="position:absolute;left:-2px;right:-2px;bottom:${my}px;height:0;
-          border-top:2px dashed rgba(230,237,243,.55);z-index:3"></div>
+      <div class="bar-box" style="height:${Math.max(h, my, 2) + 2}px">
+        <div class="bar-stack" style="height:${Math.max(h,2)}px">${segs}</div>
+        <div class="bar-mav" style="bottom:${my}px"></div>
       </div>
       <div class="bar-label">${d.month.slice(5)}月</div>
     </div>`;
@@ -1507,7 +1533,7 @@ async function boot(keepView) {
   reviewMonth = (keepView && MONTHS.includes(prevMonth)) ? prevMonth : MONTHS[0];
   sumMonths = keepView && prevSum.size
     ? new Set([...prevSum].filter(m => MONTHS.includes(m)))
-    : new Set(MONTHS);
+    : loadSumMonths();
   if (!sumMonths.size) sumMonths = new Set(MONTHS);
   renderReview();
   renderSummary();

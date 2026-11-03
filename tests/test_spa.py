@@ -68,7 +68,7 @@ def test_html_links_theme_css_with_content_hash():
 
     v = theme_hash()
     assert re.fullmatch(r"[0-9a-f]{10}", v)
-    for url in ("/legacy/recipe", "/timelog"):
+    for url in ("/legacy/recipe", "/legacy/finance"):
         html = c.get(url).text
         assert f'href="/dashboard/theme.css?v={v}"' in html, url
         assert 'href="/dashboard/theme.css"' not in html, url

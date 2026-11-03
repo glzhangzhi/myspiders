@@ -25,7 +25,7 @@ NO_CACHE = {"Cache-Control": "no-cache"}
 IMMUTABLE = {"Cache-Control": "public, max-age=31536000, immutable"}
 
 # ── theme.css 的缓存击穿 ──
-# 新外壳、旧页面、计时 PWA 都 <link> 同一个 /dashboard/theme.css。地址固定不变时，
+# 新外壳、旧页面都 <link> 同一个 /dashboard/theme.css。地址固定不变时，
 # 浏览器内存缓存或中间的 CDN 留着旧版就会出现「点了切换主题、按钮文字变了、颜色不变」
 # —— 2026-11-03 实测：新版加了浅色配色，机主浏览器里还是没有浅色的旧文件，强制刷新才好。
 # 所以返回 HTML 时把地址改写成带内容哈希的 /dashboard/theme.css?v=<hash>：

@@ -199,6 +199,17 @@ def requeue_items(body: IdsIn):
                                              only_from=[R.SKIPPED, R.FAILED, R.DONE])}
 
 
+class ClearIn(BaseModel):
+    status: str
+
+
+@router.post("/items/clear", summary="清空待下载 / 失败：整批移到「已跳过」（不删，见 repo.skip_all）")
+def clear_items(body: ClearIn):
+    if body.status not in (R.PENDING, R.FAILED):
+        raise HTTPException(400, "只能清空待下载或失败")
+    return {"n": get_media_repo().skip_all(body.status)}
+
+
 @router.post("/items/requeue-failed")
 def requeue_failed():
     return {"n": get_media_repo().requeue_failed()}
@@ -252,3 +263,8 @@ def update_tools():
 @router.get("/runs")
 def runs(limit: int = 15):
     return {"items": [_doc(r) for r in get_media_repo().recent_runs(max(1, min(limit, 50)))]}
+
+
+@router.delete("/runs", summary="清空运行记录（进行中的保留）")
+def clear_runs():
+    return {"n": get_media_repo().clear_runs()}
