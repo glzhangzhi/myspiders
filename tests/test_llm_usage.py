@@ -278,7 +278,8 @@ class TestSummarizeProjects:
             {**_doc(source="tavern", provider="deepseek", model="deepseek-flash"), "session_id": None},
         ]
         cwds = {"a": "/root/nsp-mods", "b": "/root/.dsh/remote-workspaces/100.64.0.22-root-2200/nsp-mods"}
-        out = summarize_projects(docs, cwds, "deepseek-flash", machines=MACHINES)
+        cats = [("游戏 mod", {"projects": ["nsp-mods"]})]   # 规则显式传入，不依赖本机 .env
+        out = summarize_projects(docs, cwds, "deepseek-flash", machines=MACHINES, categories=cats)
         assert [c["category"] for c in out] == ["游戏 mod"]           # 酒馆来源不进项目视图
         proj = out[0]["projects"][0]
         assert proj["project"] == "nsp-mods" and proj["requests"] == 2
@@ -287,7 +288,8 @@ class TestSummarizeProjects:
         assert proj["share_pct"] == pytest.approx(100)
 
     def test_unknown_session_still_counted(self):
-        out = summarize_projects([{**_doc(), "session_id": "gone"}], {}, "deepseek-flash", machines=MACHINES)
+        out = summarize_projects([{**_doc(), "session_id": "gone"}], {}, "deepseek-flash", machines=MACHINES,
+                                 categories=[])
         assert out[0]["category"] == UNCATEGORIZED
         assert out[0]["projects"][0]["project"] == UNKNOWN_PROJECT
 

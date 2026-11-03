@@ -30,11 +30,10 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+          node-version: 24
+      # pnpm 版本由 web/package.json 的 packageManager 字段决定（corepack 按它下载）
+      - run: npm install -g corepack@latest && corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check
