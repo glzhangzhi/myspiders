@@ -25,6 +25,7 @@ def test_flags_real_looking_secrets_and_pii():
     assert "GitHub token" in _rules("ghp_" + "A" * 36)
     assert "私钥" in _rules("-----BEGIN OPENSSH PRIVATE KEY-----")
     assert "Telegram 邀请链接" in _rules("https://t.me/+AbCdEfGh123")
+    assert "成人站点" in _rules("BASE = 'https://madou.club/x'")
 
 
 def test_allows_documented_placeholders_and_versions():

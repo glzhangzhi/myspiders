@@ -36,6 +36,7 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
     ("私钥", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
     ("Telegram 邀请链接", re.compile(r"t\.me/\+[A-Za-z0-9_-]{8,}")),
     ("真实姓名", re.compile(r"Zhichao|ZHICHAO|zhichao|Jinke Lyu|Shikenso", re.I)),
+    ("成人站点", re.compile(r"javbus|javdb|madou\.club|pornhub|xvideos", re.I)),
     ("Mercor 内部 id", re.compile(r"\b(?:world|camp|acct|comp|user)_[0-9a-f]{20,}\b")),
 ]
 
