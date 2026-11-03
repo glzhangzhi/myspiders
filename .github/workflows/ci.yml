@@ -8,6 +8,14 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    # 少数测试（菜谱 / 账单的 repo 字段保护、启动入口）会真连 MongoDB；用一个一次性的空库
+    services:
+      mongo:
+        image: mongo:8
+        ports: ["27017:27017"]
+    env:
+      MONGO_URI: mongodb://127.0.0.1:27017
+      MONGO_DEFAULT_DB: ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

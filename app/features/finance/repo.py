@@ -316,4 +316,21 @@ class FinanceRepository:
         self.rules.update_many({"l1": l1, "l2": sub}, {"$set": {"l2": ""}})
 
 
-finance_repo = FinanceRepository()
+class _Lazy:
+    """首次用到时才连库、建索引。
+
+    原先模块导入即 `FinanceRepository()`，于是**导入**本模块就会连 Mongo 建索引：
+    没有数据库的环境（CI、只跑纯函数测试）里 import 一次要卡满 30 秒再超时报错。
+    测试用 monkeypatch 替换方法时，替身存在代理自己身上，不会触发连库。
+    """
+
+    _inst: FinanceRepository | None = None
+
+    def __getattr__(self, name):
+        # 只有代理自身没有的属性才会走到这里（monkeypatch 设上的替身优先）
+        if _Lazy._inst is None:
+            _Lazy._inst = FinanceRepository()
+        return getattr(_Lazy._inst, name)
+
+
+finance_repo: FinanceRepository = _Lazy()  # type: ignore[assignment]

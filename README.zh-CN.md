@@ -43,7 +43,7 @@
 | 抓取 | httpx、requests、**Playwright**（无头 Chromium） |
 | AI | DeepSeek API（菜谱转换、AI 小镇）、Anthropic 用量接口 |
 | 前端 | **Vite 6**、**Preact 10** + **TypeScript 5**、@preact/signals、preact-iso 路由、**uPlot**（图表按需加载） |
-| 测试 | pytest（500+ 个用例，无需数据库）、Vitest、Playwright 冒烟测试 |
+| 测试 | pytest（500+ 个用例，少数需要本地 MongoDB）、Vitest、Playwright 冒烟测试 |
 | 运维 | systemd、ntfy、rclone → Google Drive，前面挂带访问控制的反向代理 / 隧道 |
 | 其它 | sxtwl（寿星天文历，农历节气）、OpenCC（简繁转换） |
 
@@ -146,7 +146,7 @@ python -m app --port 12312           # → http://127.0.0.1:12312/dashboard
 ### 测试
 
 ```bash
-pytest                      # 后端：500+ 个用例，不需要数据库
+pytest                      # 后端：500+ 个用例（少数需要本地 MongoDB）
 pnpm -C web check           # 类型检查 + vitest + 构建 + 首屏体积预算（gzip 80 KB）
 python scripts/e2e_smoke.py # 无头浏览器打开每个页面，有控制台报错即失败
 ```

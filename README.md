@@ -43,7 +43,7 @@ It is built around a **module registry**: every feature is a self-contained pack
 | Scraping | httpx, requests, **Playwright** (headless Chromium) |
 | AI | DeepSeek API (recipe conversion, AI town), Anthropic usage API |
 | Frontend | **Vite 6**, **Preact 10** + **TypeScript 5**, @preact/signals, preact-iso router, **uPlot** (lazy-loaded charts) |
-| Testing | pytest (500+ tests, no DB required), Vitest, Playwright smoke tests |
+| Testing | pytest (500+ tests; a throwaway MongoDB for a few repo tests), Vitest, Playwright smoke tests |
 | Ops | systemd, ntfy, rclone → Google Drive, a reverse proxy / tunnel with access control in front |
 | Misc | sxtwl (Chinese calendar), OpenCC (Simplified ↔ Traditional) |
 
@@ -146,7 +146,7 @@ python -m app --port 12312           # → http://127.0.0.1:12312/dashboard
 ### Tests
 
 ```bash
-pytest                      # backend: 500+ tests, no database needed
+pytest                      # backend: 500+ tests (a few need a local MongoDB)
 pnpm -C web check           # typecheck + vitest + build + first-load size budget (80 KB gzip)
 python scripts/e2e_smoke.py # headless browser opens every page, fails on console errors
 ```

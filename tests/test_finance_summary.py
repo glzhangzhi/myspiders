@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from app.features.finance import service as finance_service
@@ -43,7 +45,8 @@ def fake_repo(monkeypatch):
     def _list_tx(months=None, **_):
         return [t for t in store if not months or t["month"] in months]
 
-    monkeypatch.setattr(finance_service.finance_repo, "list_tx", _list_tx)
+    # 换掉整个 repo 而不是给它打补丁：给真 repo 设属性要先读旧值，会触发连库
+    monkeypatch.setattr(finance_service, "finance_repo", SimpleNamespace(list_tx=_list_tx))
     return store
 
 
