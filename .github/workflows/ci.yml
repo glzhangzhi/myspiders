@@ -29,7 +29,13 @@ jobs:
       - name: Privacy scan
         run: python scripts/check_public.py
       - name: Tests
-        run: pytest -q
+        run: |
+          set -o pipefail
+          pytest -q -rfE 2>&1 | tee pytest.log || {
+            # 失败摘要写成注解，不登录也能在 Actions 页面直接看到
+            grep -E '^(FAILED|ERROR) ' pytest.log | head -20 | while read -r l; do echo "::error::$l"; done
+            exit 1
+          }
 
   frontend:
     runs-on: ubuntu-latest
