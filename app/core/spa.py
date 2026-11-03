@@ -11,35 +11,32 @@ dist 不进 git：没构建过时 /dashboard 返回 503 并提示怎么构建，
 
 from __future__ import annotations
 
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
-from app.core.pages import NO_CACHE
-from app.core.paths import DASHBOARD_DIR, REPO_ROOT
+from fastapi import Request
+
+from app.core.pages import IMMUTABLE as _IMMUTABLE, NO_CACHE, html_response, theme_file
+from app.core.paths import DASHBOARD_DIR
 
 DIST = DASHBOARD_DIR / "dist"
-# 没构建时 theme.css 退回源文件（旧页面与计时 PWA 不依赖前端构建）
-THEME_SRC = REPO_ROOT / "web" / "public" / "theme.css"
-IMMUTABLE = {"Cache-Control": "public, max-age=31536000, immutable"}
+IMMUTABLE = _IMMUTABLE
 _TYPES = {".js": "application/javascript", ".css": "text/css", ".svg": "image/svg+xml",
           ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json"}
 
 router = APIRouter(tags=["Pages"])
 
 
-def _theme_path() -> Path:
-    built = DIST / "theme.css"
-    return built if built.exists() else THEME_SRC
-
-
 @router.get("/dashboard/theme.css", include_in_schema=False)
-def theme_css():
-    p = _theme_path()
+def theme_css(request: Request):
+    """带 ?v=<哈希> 的请求长期缓存（地址随内容变）；不带版本的老引用仍 no-cache。"""
+    built = DIST / "theme.css"
+    p = built if built.exists() else theme_file()
     if not p.exists():
         raise HTTPException(status_code=404, detail="theme.css 未找到")
-    return FileResponse(p, media_type="text/css", headers=NO_CACHE)
+    headers = IMMUTABLE if request.query_params.get("v") else NO_CACHE
+    return FileResponse(p, media_type="text/css", headers=headers)
 
 
 @router.get("/dashboard/assets/{name:path}", include_in_schema=False)
@@ -59,7 +56,7 @@ def _index():
             "（或 <code>scripts/deploy.sh --web-only</code>）。</p>",
             status_code=503,
         )
-    return FileResponse(index, media_type="text/html", headers=NO_CACHE)
+    return html_response(index)
 
 
 @router.get("/dashboard", include_in_schema=False)

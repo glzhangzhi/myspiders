@@ -58,3 +58,20 @@ def test_legacy_pages_live_under_legacy_prefix():
     assert c.get("/legacy/common.js").status_code == 200
     navs = [n for m in modules() for n in m.nav if n.legacy_url]
     assert all(n.legacy_url in {p.url for p in pages} for n in navs)
+
+
+def test_html_links_theme_css_with_content_hash():
+    """主题文件地址带内容哈希：改了配色地址就变，浏览器不会拿着旧 theme.css 不放。"""
+    import re
+
+    from app.core.pages import theme_hash
+
+    v = theme_hash()
+    assert re.fullmatch(r"[0-9a-f]{10}", v)
+    for url in ("/legacy/recipe", "/timelog"):
+        html = c.get(url).text
+        assert f'href="/dashboard/theme.css?v={v}"' in html, url
+        assert 'href="/dashboard/theme.css"' not in html, url
+    r = c.get(f"/dashboard/theme.css?v={v}")
+    assert "immutable" in r.headers["cache-control"]
+    assert c.get("/dashboard/theme.css").headers["cache-control"] == "no-cache"

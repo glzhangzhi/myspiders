@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.core.paths import DASHBOARD_DIR
-from app.core.pages import NO_CACHE as _NO_CACHE
+from app.core.pages import NO_CACHE as _NO_CACHE, html_response
 
 router = APIRouter(tags=["Timelog"])
 
@@ -22,7 +22,7 @@ TIMELOG_ICONS = DASHBOARD_DIR / "timelog-icons"
 async def timelog_page():
     html = DASHBOARD_DIR / "timelog.html"
     if html.exists():
-        return FileResponse(html, media_type="text/html", headers=_NO_CACHE)
+        return html_response(html)
     raise HTTPException(status_code=404, detail="计时页面未找到")
 
 
