@@ -87,3 +87,13 @@ def test_duplicate_across_pages_counted_once():
 def test_legacy_record_without_field_reads_as_on_sale():
     r = NinPriceRecord(pid="x", title="x", original_price=1, current_price=1, discount_percent=0)
     assert r.on_sale is True
+
+
+def test_sale_url_accepts_root_or_full_address():
+    from app.features.nintendo.spider import sale_url
+
+    full = "https://store.example.hk/download-code/sale"
+    assert sale_url("https://store.example.hk") == full
+    assert sale_url("https://store.example.hk/") == full
+    assert sale_url(full) == full, "完整地址再拼一次会 404，而且旧代码不报错"
+    assert sale_url(full + "/") == full

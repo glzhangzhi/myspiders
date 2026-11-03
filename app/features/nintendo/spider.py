@@ -68,6 +68,19 @@ async def read_price(locator):
     return parse_price(text)
 
 
+SALE_PATH = "/download-code/sale"
+
+
+def sale_url(configured: str) -> str:
+    """配置写站点根或写完整特价页都行。
+
+    原先无条件拼 SALE_PATH，而 .env 里写的正是完整地址 → 请求 …/sale/download-code/sale
+    得到 404，旧代码把「一张卡片都没有」记成 today no news —— 2026-08 起静默停摆两个多月。
+    """
+    base = configured.strip().rstrip("/")
+    return base if base.endswith(SALE_PATH) else base + SALE_PATH
+
+
 async def scrape_sale_list() -> Tuple[List[Scraped], Set[str], bool]:
     """抓特价列表全部页。返回 (解析成功的条目, 列表里出现过的全部 pid, 是否完整)。
 
@@ -75,7 +88,7 @@ async def scrape_sale_list() -> Tuple[List[Scraped], Set[str], bool]:
     （翻页期间排序会微动，个别游戏两页都没赶上是正常的，reconcile 对此有容错）。
     不完整的一轮不做「折扣结束」判定，见 reconcile.py。
     """
-    base_url = f"{settings.url.rstrip('/')}/download-code/sale"
+    base_url = sale_url(settings.url)
     items: List[Scraped] = []
     listed: Set[str] = set()
     ok = True
@@ -160,11 +173,14 @@ async def check_price():
 
     if events:
         events.sort(key=lambda e: e.record.discount_percent, reverse=True)
+        # ntfy 正文超过 4KB 会变成附件，锁屏上就什么都看不到了；多的去面板看
         body = "".join(
             f"[{_EVENT_TAG[e.kind]}] {e.record.title}: {e.record.original_price:g} → "
             f"{e.record.current_price:g} (-{e.record.discount_percent:.0f}%)\n"
-            for e in events
+            for e in events[:25]
         )
+        if len(events) > 25:
+            body += f"…另有 {len(events) - 25} 条，见面板\n"
         try:
             # low：逛街性质，路过看见悬浮横幅就行，不值得响铃打断。
             send_note("本日新增折扣信息", body, topic=TOPIC, priority="low",
