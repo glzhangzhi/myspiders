@@ -1,0 +1,49 @@
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "tasks": [
+      {
+        "code": 0,
+        "msg": "成功",
+        "data": {
+          "id": 42,
+          "content_id": "wxchannels:14545102784038246591",
+          "root_task_id": 42,
+          "name": "示例视频",
+          "unique_id": "wxchannels:14545102784038246591",
+          "platform_id": "wxchannels",
+          "status": 1,
+          "source_url": "https://channels.weixin.qq.com/...",
+          "cover_url": "https://example.com/cover.jpg",
+          "cover_width": "1080",
+          "cover_height": "1440",
+          "config_json": "{\"download_dir\":\"/absolute/path/downloads\"}",
+          "metadata_json": "{}",
+          "resources": [
+            {
+              "id": 73,
+              "task_id": 42,
+              "download_dir": "/absolute/path/downloads",
+              "name": "示例视频",
+              "kind": "video",
+              "type": "FILE",
+              "unique_id": "video:14545102784038246591",
+              "size": 0,
+              "downloaded": 0,
+              "speed": 0,
+              "status": 0,
+              "output_path": "示例视频",
+              "file_path": "/absolute/path/downloads/示例视频"
+            }
+          ],
+          "created_at": 1787000000000,
+          "updated_at": 1787000000000
+        }
+      }
+    ],
+    "ids": [
+      42
+    ]
+  }
+}

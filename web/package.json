@@ -1,0 +1,31 @@
+{
+  "name": "myspiders-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/size-check.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "tsc --noEmit && vitest run && vite build && node scripts/size-check.mjs"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.0.0",
+    "preact": "^10.26.0",
+    "preact-iso": "^2.9.0",
+    "uplot": "^1.6.31"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.0",
+    "@types/node": "^22.20.5",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0",
+    "vitest": "^3.1.0"
+  },
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=20"
+  }
+}

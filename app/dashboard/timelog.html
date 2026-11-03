@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>计时</title>
+<!-- Access 后面取 manifest 必须带 cookie，否则拿到的是登录页 302 —— use-credentials 不能省 -->
+<link rel="manifest" href="/timelog/manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" href="/timelog/icon-192.png">
+<link rel="apple-touch-icon" href="/timelog/icon-192.png">
+<link rel="stylesheet" href="/dashboard/theme.css">
+<style>
+/* ───────────────────────────────────────────────────────────────────
+ * 计时 · 手机端原型（第 1 步：假数据，不调任何接口）
+ * 设计约定见 docs/timelog.md。两条贯穿全页的规则：
+ *   - 只用 theme.css 的变量，不写死色值；
+ *   - 不用 --red / --green：它们在全站是「错误/成功」状态色，而这里
+ *     没有对错 —— 漏记、超出预估都是中性事实（需求 3.12）。
+ * ─────────────────────────────────────────────────────────────────── */
+:root {
+  /* 类型配色：只从锚色/藏蓝/紫/琥珀派生，按序号分配 */
+  --t0: var(--accent);
+  --t1: var(--blue);
+  --t2: var(--purple);
+  --t3: var(--yellow);
+  --t4: color-mix(in srgb, var(--accent) 55%, var(--blue));
+  --t5: color-mix(in srgb, var(--purple) 55%, var(--yellow));
+  --t6: color-mix(in srgb, var(--blue) 50%, var(--purple));
+  --t7: color-mix(in srgb, var(--yellow) 55%, var(--accent));
+  --tnone: var(--grey);
+  --radius: 14px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  touch-action: manipulation;
+  padding: calc(env(safe-area-inset-top) + 8px) 14px calc(env(safe-area-inset-bottom) + 24px);
+  max-width: 560px; margin: 0 auto;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* 顶栏 */
+.top { display: flex; align-items: center; justify-content: space-between; height: 40px; }
+.top h1 { font-size: 17px; margin: 0; font-weight: 600; color: var(--text-dim); }
+.sync {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
+  padding: 4px 12px; font-size: 13px; color: var(--text-dim); min-height: 32px;
+}
+.sync.pending { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 40%, var(--border)); }
+.top-r { display: flex; align-items: center; gap: 8px; }
+.gear { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; width: 36px; height: 36px; color: var(--text-dim); font-size: 16px; }
+
+/* 当前计时卡片 */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 16px 12px; margin-top: 8px; position: relative; overflow: hidden;
+}
+.card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--tc, var(--tnone)); }
+.card .type { font-size: 13px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+.card .state { margin-left: auto; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface2); }
+.card .name { font-size: 20px; font-weight: 600; margin: 4px 0 0; word-break: break-all; }
+.card .name.unnamed { color: var(--text-dim); font-weight: 500; }
+.card .clock { font-size: 56px; font-weight: 300; letter-spacing: 1px; line-height: 1.15; margin: 6px 0 2px; }
+.card.paused .clock { color: var(--text-dim); }
+.card .hint { font-size: 13px; color: var(--text-dim); min-height: 19px; }
+/* 横向滚动一排，不换行：卡片高度不因它变来变去 */
+.guess-row { display: flex; align-items: center; gap: 8px; overflow-x: auto; margin: 8px -16px 0; padding: 2px 16px; scrollbar-width: none; }
+.guess-row::-webkit-scrollbar { display: none; }
+.guess-row .gl { font-size: 13px; color: var(--purple); flex: none; }
+.guess-row .chip { flex: none; }
+.card .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.card .cancel { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--text-dim); font-size: 13px; padding: 8px 16px; min-height: 40px; }
+.card.empty { text-align: center; padding: 28px 16px; color: var(--text-dim); }
+.card.empty::before { display: none; }
+
+.btn {
+  min-height: 56px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--surface2); font-size: 17px; font-weight: 600;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.ghost { background: transparent; }
+.btn:active { transform: scale(.98); }
+
+/* 已暂停 */
+.paused-bar { margin-top: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.paused-head { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: 0; padding: 12px 14px; min-height: 48px; color: var(--text-dim); font-size: 14px; }
+.paused-head .chev { transition: transform .15s; }
+.paused-bar.folded .chev { transform: rotate(-90deg); }
+.paused-bar.folded .paused-list { display: none; }
+.paused-row { display: flex; align-items: center; border-top: 1px solid var(--border); }
+.paused-row .main { flex: 1; display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 10px 14px; min-height: 52px; text-align: left; min-width: 0; }
+.paused-row .main .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.paused-row .main .t { color: var(--text-dim); font-size: 14px; }
+.paused-row .more { background: none; border: 0; width: 52px; min-height: 52px; color: var(--text-dim); font-size: 20px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tc, var(--tnone)); flex: none; }
+
+/* 立即开始 */
+.start-now {
+  width: 100%; margin-top: 12px; min-height: 60px; border-radius: var(--radius);
+  border: 1.5px solid var(--accent); background: var(--accent-bg); color: var(--accent);
+  font-size: 18px; font-weight: 600;
+}
+
+/* 快捷按钮网格 */
+.section-title { font-size: 13px; color: var(--text-dim); margin: 20px 2px 8px; display: flex; justify-content: space-between; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
+@media (min-width: 440px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+.qb {
+  position: relative; text-align: left; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 12px 10px 14px; min-height: 96px; overflow: hidden;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.qb::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--tc, var(--tnone)); }
+.qb.active { border-color: var(--accent); background: var(--accent-bg); }
+.qb .qn { font-size: 16px; font-weight: 600; }
+.qb .qt { font-size: 12px; color: var(--text-dim); }
+.qb .qr { font-size: 13px; margin-top: auto; padding-top: 6px; }
+.qb .qs { font-size: 11px; color: var(--text-dim); }
+.qb .guess { color: var(--purple); }
+.qb.add { border-style: dashed; background: transparent; align-items: center; justify-content: center; color: var(--text-dim); text-align: center; }
+.qb.add::before { display: none; }
+.qb.add .qn { font-size: 15px; font-weight: 500; }
+
+
+/* 底部弹层 */
+.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .18s; z-index: 10; }
+.backdrop.show { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; max-width: 560px; margin: 0 auto;
+  background: var(--surface); border-top: 1px solid var(--border); border-radius: 18px 18px 0 0;
+  padding: 10px 16px calc(env(safe-area-inset-bottom) + 16px);
+  transform: translateY(105%); transition: transform .2s ease-out, visibility 0s .2s; max-height: 88vh; overflow-y: auto;
+  visibility: hidden;  /* 只靠 translate 藏，手机工具栏伸缩时会露出一截 */
+}
+.sheet.show { transform: none; visibility: visible; transition: transform .2s ease-out; }
+.sheet .grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 10px; }
+.sheet h2 { font-size: 17px; margin: 0 0 4px; }
+.sheet .sub { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+.sheet label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; }
+.sheet input[type=text], .sheet input[type=number], .sheet textarea {
+  width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px; font: inherit; font-size: 16px; /* ≥16px 防 Chrome 聚焦时自动缩放 */
+}
+.sheet textarea { min-height: 72px; resize: vertical; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1px solid var(--border); background: var(--bg); border-radius: 999px;
+  padding: 8px 14px; min-height: 40px; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;
+}
+.chip.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.sheet .row2 { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 18px; }
+.sheet .row1 { margin-top: 18px; }
+.sheet .row1 .btn, .sheet .row2 .btn { width: 100%; }
+.compare { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 6px; }
+.compare .k { display: flex; justify-content: space-between; font-size: 14px; color: var(--text-dim); }
+.compare .k b { color: var(--text); font-weight: 600; }
+.compare .v { margin-top: 8px; font-size: 15px; }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.switch-row .txt { font-size: 14px; }
+.switch-row .txt small { display: block; color: var(--text-dim); font-size: 12px; }
+.switch { width: 52px; height: 30px; border-radius: 15px; border: 1px solid var(--border); background: var(--bg); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--text-dim); transition: left .15s; }
+.switch.on { background: var(--accent-bg); border-color: var(--accent); }
+.switch.on::after { left: 25px; background: var(--accent); }
+.list-btn { display: block; width: 100%; text-align: left; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-height: 52px; margin-top: 8px; font-size: 16px; }
+.list-btn .d { display: block; font-size: 12px; color: var(--text-dim); }
+.danger-link { background: none; border: 0; color: var(--text-dim); text-decoration: underline; font-size: 13px; padding: 10px 0; margin-top: 8px; min-height: 40px; }
+
+/* toast */
+.toast {
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translate(-50%, 140%);
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 12px;
+  padding: 10px 10px 10px 16px; display: flex; align-items: center; gap: 12px; z-index: 20;
+  transition: transform .2s, visibility 0s .2s; max-width: calc(100vw - 28px); font-size: 14px; visibility: hidden;
+}
+.toast.show { transform: translate(-50%, 0); visibility: visible; transition: transform .2s; }
+/* 弹层开着时 toast 挪到顶部，否则正好盖住弹层底部的「保存」 */
+.sheet.show ~ .toast { bottom: auto; top: calc(env(safe-area-inset-top) + 12px); transform: translate(-50%, -200%); }
+.sheet.show ~ .toast.show { transform: translate(-50%, 0); }
+.toast button { background: none; border: 0; color: var(--accent); font-weight: 600; padding: 8px 10px; min-height: 40px; white-space: nowrap; flex: none; }
+.toast button:empty { display: none; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>计时</h1>
+  <div class="top-r">
+    <button class="sync num" id="sync" onclick="onSyncChip()"></button>
+    <button class="gear" onclick="openSettings()" aria-label="设置">⚙</button>
+  </div>
+</div>
+
+<div id="current"></div>
+<div id="paused"></div>
+<button class="start-now" onclick="startNow()">▶ 立即开始</button>
+
+<div class="section-title"><span>快捷</span><span>长按编辑</span></div>
+<div class="grid" id="grid"></div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet"></div>
+<div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-btn"></button></div>
+
+<script src="/timelog/core.js"></script>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════
+ * 数据层
+ *
+ * 屏幕上的状态 = 上次同步拿到的服务端 state（IndexedDB 里缓存一份，离线也能打开）
+ *              + 本机还没同步上去的操作（queue），按与服务端相同的规则叠上去。
+ *
+ * 操作是唯一会被上传的东西（规则见 app/services/timelog_replay.py）：
+ *   - ts 在**点下去的那一刻**由手机生成（需求 §5），服务端只认它；
+ *   - 每条操作有自己的 UUID，重复上传服务端按 id 去重；
+ *   - 一键切换由手机显式写一条 pause/end（与新 start 同 ts），服务端不推断。
+ * 存储与同步的细节在 timelog-core.js（与 service worker 共用）。
+ * ═══════════════════════════════════════════════════════════════════ */
+const MIN = 60000;
+const EMPTY = { types: [], buttons: [], active: [], settings: { switch_behavior: 'pause' } };
+
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  // 非安全上下文（http 局域网调试）没有 randomUUID
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
+
+let state = EMPTY;          // 服务端 state（或其缓存）
+let queue = [];             // 待同步的操作（IndexedDB 的内存镜像）
+const putting = new Map();  // 已入内存、IndexedDB 还没写完的操作
+let net = { status: 'idle' };
+
+async function reloadQueue() {
+  const stored = await TL.queueAll();
+  const ids = new Set(stored.map(o => o.id));
+  // 重读时 IndexedDB 可能还没写完刚点的那条：补回来，否则界面会闪一下「没点过」
+  queue = [...stored, ...[...putting.values()].filter(o => !ids.has(o.id))].sort((a, b) => a.ts - b.ts);
+}
+
+function addOp(kind, rid, data, ts = Date.now()) {
+  const op = { id: uuid(), ts, kind, rid };
+  if (data) op.data = data;
+  queue.push(op);
+  putting.set(op.id, op);
+  TL.queuePut(op)
+    .then(() => putting.delete(op.id))
+    .catch(e => toast('本机存储失败：' + e));
+  scheduleSync();
+  return op;
+}
+
+/* ── 叠加：服务端 state + 本地队列。规则与服务端 replay_record 一致（只需管进行中的记录） ── */
+const TOMB = ['cancelled', 'deleted'];
+function applyRecOp(recs, op) {
+  const r = recs.get(op.rid), d = op.data || {};
+  if (!r) {
+    if (op.kind === 'start') recs.set(op.rid, {
+      id: op.rid, name: (d.name || '').trim() || null, type_id: d.type_id ?? null, button_id: d.button_id ?? null,
+      note: null, estimate: d.estimate ?? null, estimate_source: d.estimate_source ?? null,
+      status: 'running', segments: [{ s: op.ts, e: null }], updated_ts: op.ts,
+    });
+    return;
+  }
+  if (TOMB.includes(r.status)) return;
+  r.updated_ts = Math.max(r.updated_ts || 0, op.ts);
+  const segs = r.segments, last = segs[segs.length - 1];
+  switch (op.kind) {
+    case 'pause':  if (r.status === 'running' && op.ts >= last.s) { last.e = op.ts; r.status = 'paused'; } break;
+    case 'resume': if (r.status === 'paused' && op.ts >= last.e) { segs.push({ s: op.ts, e: null }); r.status = 'running'; } break;
+    case 'end':
+      if (r.status === 'running' && op.ts >= last.s) { last.e = op.ts; r.status = 'done'; }
+      else if (r.status === 'paused') r.status = 'done';
+      break;
+    case 'cancel': r.status = 'cancelled'; break;
+    case 'delete': r.status = 'deleted'; break;
+    case 'edit': for (const k of ['name', 'type_id', 'note', 'estimate', 'estimate_source']) if (k in d) r[k] = d[k]; break;
+  }
+}
+function applyBtnOp(btns, op) {
+  if (op.kind === 'button.delete') { btns.delete(op.rid); return; }
+  if (op.kind === 'button.put') {
+    const old = btns.get(op.rid), d = op.data;
+    btns.set(op.rid, { reference: { kind: 'none', n: 0 }, ...old, id: op.rid, ...d, name: d.name.trim() });
+  }
+}
+let recs = new Map(), buttons = [];
+function derive() {
+  const r = new Map(state.active.map(x => [x.id, structuredClone(x)]));
+  const b = new Map(state.buttons.map(x => [x.id, { ...x }]));
+  for (const op of queue) (op.kind.startsWith('button.') ? applyBtnOp(b, op) : applyRecOp(r, op));
+  recs = r;
+  buttons = [...b.values()].sort((x, y) => (x.order ?? 0) - (y.order ?? 0));
+}
+
+const elapsed = (r, now = Date.now()) => r.segments.reduce((a, g) => a + ((g.e ?? now) - g.s), 0);
+
+/* ── 界面状态（每次渲染重算） ── */
+let pendingCancel = null;   // { rid, ts, timer }：取消先挂起 5 秒，可撤销
+function visible(r) { return !(pendingCancel && pendingCancel.rid === r.id); }
+function running() { return [...recs.values()].find(r => r.status === 'running' && visible(r)) || null; }
+function pausedList() {
+  return [...recs.values()].filter(r => r.status === 'paused' && visible(r)).sort((a, b) => b.updated_ts - a.updated_ts);
+}
+/** 卡片上显示谁：在跑的；没有就显示最近暂停的那条（否则一按暂停卡片就消失，很跳）。 */
+function current() { return running() || pausedList()[0] || null; }
+
+const typeOf = id => state.types.find(t => t.id === id) || null;
+const buttonOf = id => buttons.find(b => b.id === id) || null;
+const tc = typeId => { const t = typeOf(typeId); return t ? `var(--t${t.color})` : 'var(--tnone)'; };
+
+/* ═══════════════════ 格式化 ═══════════════════ */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function clock(ms) {
+  const s = Math.floor(Math.max(0, ms) / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+function fmtMin(m) {
+  m = Math.round(m);
+  if (m < 60) return `${m} 分`;
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? `${h} 小时 ${r} 分` : `${h} 小时`;
+}
+function fmtRange(a, b) {
+  if (a === b) return fmtMin(a);
+  return b < 60 ? `${a}–${b} 分` : `${fmtMin(a)} – ${fmtMin(b)}`;
+}
+/**
+ * 参考时长文案。数值由服务端按该按钮全部已完成记录算好（分档与取整见 timelog_replay.reference）：
+ *   none → 按钮的初始预估（没有就说还没有记录）；last → 「上次 X」；
+ *   range（2–3 次）→ 最短–最长；iqr（≥4 次）→ 四分位区间「通常 X–Y」。
+ */
+function reference(b) {
+  const ref = b.reference || { kind: 'none', n: 0 };
+  if (ref.kind === 'none') return b.initial_estimate
+    ? { main: `预计 ${fmtMin(b.initial_estimate)}`, sub: '还没有记录' }
+    : { main: '还没有记录', sub: '' };
+  if (ref.kind === 'last') return { main: `上次 ${fmtMin(ref.lo)}`, sub: '基于 1 次' };
+  if (ref.kind === 'range') return { main: fmtRange(ref.lo, ref.hi), sub: `基于 ${ref.n} 次` };
+  return { main: `通常 ${fmtRange(ref.lo, ref.hi)}`, sub: `基于 ${ref.n} 次` };
+}
+/**
+ * 偏差文案（需求 3.2 / 3.12）：只陈述事实，不说「失败」「超时」。
+ * 偏乐观 = 估少了（实际更久），偏悲观 = 估多了。
+ */
+function deviation(est, actualMin) {
+  const diff = Math.round(actualMin - est), pct = Math.round((actualMin - est) / est * 100);
+  if (pct === 0) return '实际与预估基本一致';
+  return pct > 0
+    ? `实际比预估多 ${fmtMin(diff)}（${pct}%），预估偏乐观`
+    : `实际比预估少 ${fmtMin(-diff)}（${-pct}%），预估偏悲观`;
+}
+
+/* ═══════════════════ 渲染 ═══════════════════ */
+let pausedFolded = false;
+
+function render() {
+  derive();
+  renderSync();
+  renderCurrent();
+  renderPaused();
+  renderGrid();
+}
+
+const NET_TEXT = {
+  'no-token': '未设令牌', 'bad-token': '令牌不对', login: '需要重新登录',
+};
+function renderSync() {
+  const n = queue.length, el = document.getElementById('sync'), st = net.status;
+  let text, warn = true;
+  if (NET_TEXT[st]) text = NET_TEXT[st] + (n ? ` · 待同步 ${n}` : '');
+  else if (st === 'offline') text = n ? `离线 · 待同步 ${n}` : '离线';
+  else if (st === 'error') text = `同步出错${n ? ` · 待同步 ${n}` : ''}`;
+  else { text = n ? `待同步 ${n}` : '已同步'; warn = n > 0; }
+  el.textContent = text;
+  el.classList.toggle('pending', warn);
+}
+
+function renderCurrent() {
+  const r = current(), box = document.getElementById('current');
+  if (!r) { box.innerHTML = `<div class="card empty">现在没有计时中的任务</div>`; return; }
+  const t = typeOf(r.type_id), b = buttonOf(r.button_id), isRun = r.status === 'running';
+  let hint = '';
+  if (r.estimate) hint = `预估 ${fmtMin(r.estimate)}`;
+  else if (b && !b.guess_first) { const ref = reference(b); hint = `参考 ${ref.main}${ref.sub ? ' · ' + ref.sub : ''}`; }
+  // 先猜后看：卡片里一排时长，点一个就记为预估、这排随即消失；不点就是不估。
+  // 不弹窗、不揭晓历史 —— 计时已经开始，猜不猜都不该挡在中间。
+  const guessRow = (b && b.guess_first && !r.estimate)
+    ? `<div class="guess-row"><span class="gl">估一下</span>${GUESS_CHOICES.map(m =>
+        `<button class="chip" onclick="setGuess('${r.id}',${m})">${fmtMin(m)}</button>`).join('')}</div>`
+    : '';
+  box.innerHTML = `
+    <div class="card ${isRun ? '' : 'paused'}" style="--tc:${tc(r.type_id)}">
+      <div class="type"><span>${t ? esc(t.name) : '未分类'}</span><span class="state">${isRun ? '计时中' : '已暂停'}</span></div>
+      <div class="name ${r.name ? '' : 'unnamed'}">${r.name ? esc(r.name) : '未命名'}</div>
+      <div class="clock num" id="clock">${clock(elapsed(r))}</div>
+      ${guessRow || `<div class="hint">${esc(hint)}</div>`}
+      <div class="actions">
+        ${isRun
+          ? `<button class="btn primary" onclick="pauseRec('${r.id}')">暂停</button>`
+          : `<button class="btn primary" onclick="resumeRec('${r.id}')">恢复</button>`}
+        <button class="btn" onclick="endRec('${r.id}')">结束</button>
+      </div>
+      <button class="cancel" onclick="cancelRec('${r.id}')">取消（误点了，作废这条）</button>
+    </div>`;
+}
+
+function renderPaused() {
+  const cur = current();
+  const list = pausedList().filter(r => !cur || r.id !== cur.id);
+  const box = document.getElementById('paused');
+  if (!list.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div class="paused-bar ${pausedFolded ? 'folded' : ''}">
+      <button class="paused-head" onclick="pausedFolded=!pausedFolded;renderPaused()">
+        <span>已暂停 · ${list.length}</span><span class="chev">▼</span></button>
+      <div class="paused-list">${list.map(r => `
+        <div class="paused-row" data-rid="${r.id}">
+          <button class="main" onclick="resumeRec('${r.id}')" style="--tc:${tc(r.type_id)}">
+            <span class="dot"></span><span class="n">${r.name ? esc(r.name) : '未命名'}</span>
+            <span class="t num">${clock(elapsed(r))}</span></button>
+          <button class="more" onclick="pausedMenu('${r.id}')" aria-label="更多">⋯</button>
+        </div>`).join('')}</div>
+    </div>`;
+}
+
+function renderGrid() {
+  const run = running();
+  const cells = buttons.map(b => {
+    const t = typeOf(b.type_id);
+    // 先猜后看：按钮上**不能**显示参考时长，否则还没猜就先看到了答案
+    let ref;
+    if (b.guess_first) {
+      const n = (b.reference || {}).n || 0;
+      ref = { main: '<span class="guess">🎯 先猜后看</span>', sub: n ? `已有 ${n} 次记录` : '还没有记录' };
+    } else {
+      const x = reference(b); ref = { main: esc(x.main), sub: esc(x.sub) };
+    }
+    const active = run && run.button_id === b.id;
+    return `<button class="qb ${active ? 'active' : ''}" data-bid="${b.id}" style="--tc:${tc(b.type_id)}">
+      <span class="qn">${esc(b.name)}</span>
+      <span class="qt">${t ? esc(t.name) : '未分类'}</span>
+      <span class="qr">${ref.main}</span><span class="qs">${ref.sub || '&nbsp;'}</span></button>`;
+  });
+  cells.push(`<button class="qb add" onclick="openNewTask()"><span class="qn">＋ 新任务</span><span class="qt">填名称、类型、预估</span></button>`);
+  cells.push(`<button class="qb add" onclick="openButtonEditor(null)"><span class="qn">＋ 快捷按钮</span><span class="qt">常做的事存成一个</span></button>`);
+  document.getElementById('grid').innerHTML = cells.join('');
+}
+
+/** 每秒只改数字，不整页重绘（重绘会打断正在进行的长按）。 */
+function tick() {
+  const r = current(), el = document.getElementById('clock');
+  if (r && el) el.textContent = clock(elapsed(r));
+  document.querySelectorAll('.paused-row').forEach(row => {
+    const rr = recs.get(row.dataset.rid); if (rr) row.querySelector('.t').textContent = clock(elapsed(rr));
+  });
+}
+
+/* ═══════════════════ 同步 ═══════════════════ */
+let syncing = false, again = false, syncTimer = null;
+
+/** 点完一个操作后稍等再推：连点几下（切换 = pause + start）合成一批。 */
+function scheduleSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(sync, 400);
+  // 浏览器支持就再登记一次后台同步：App 被切走/关掉后，联网时由 service worker 推上去
+  navigator.serviceWorker?.ready.then(reg => reg.sync && reg.sync.register('timelog-flush')).catch(() => {});
+}
+
+async function sync() {
+  if (syncing) { again = true; return; }
+  syncing = true;
+  try {
+    do {
+      again = false;
+      const r = await TL.flush();
+      net = r;
+      if (r.status === 'ok') {
+        state = r.state;
+        if (r.rejected.length) toast(`有 ${r.rejected.length} 条操作被服务端拒收（已丢弃）：${r.rejected[0].reason}`);
+        if (r.more) again = true;
+      }
+    } while (again && net.status === 'ok');
+  } catch (e) {
+    net = { status: 'error', detail: String(e) };
+  } finally {
+    syncing = false;
+    await reloadQueue();
+    render();
+  }
+}
+
+function onSyncChip() {
+  const st = net.status;
+  if (st === 'no-token' || st === 'bad-token') return openSettings();
+  // Access 会话过期：整页跳一次，Cloudflare 会把登录页接管过来，登录完回到这里
+  if (st === 'login') { location.href = '/timelog'; return; }
+  sync().then(() => {
+    if (net.status === 'ok') toast(queue.length ? `还有 ${queue.length} 条待同步` : '已同步');
+    else if (net.status === 'offline') toast('没联网，联网后会自动同步');
+    else if (net.status === 'error') toast('同步出错：' + (net.detail || net.code || ''));
+  });
+}
+
+/* ═══════════════════ 操作 ═══════════════════ */
+/** 一键切换：开始/恢复任何一条之前，把正在跑的那条暂停（或按设置结束），与新操作同一个 ts。 */
+function switchAway(ts, exceptId = null) {
+  const r = running();
+  if (!r || r.id === exceptId) return;
+  addOp(state.settings.switch_behavior === 'end' ? 'end' : 'pause', r.id, null, ts);
+}
+
+function startRecord(data, ts = Date.now()) {
+  flushCancel();
+  switchAway(ts);
+  const rid = uuid();
+  const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v != null));
+  addOp('start', rid, Object.keys(clean).length ? clean : null, ts);
+  render();
+  return rid;
+}
+
+function startNow() {
+  startRecord({});
+  toast('已开始一个未命名任务，结束时再补名字');
+}
+
+function pauseRec(rid) { flushCancel(); addOp('pause', rid); render(); }
+function resumeRec(rid) {
+  flushCancel();
+  const ts = Date.now();
+  switchAway(ts, rid);
+  addOp('resume', rid, null, ts);
+  render(); closeSheet();
+}
+function endRec(rid) {
+  flushCancel();
+  const ts = Date.now();          // 结束时刻 = 点下去的一刻；后面的补填弹框不影响它
+  addOp('end', rid, null, ts);
+  render();
+  openEndSheet(rid);
+}
+
+/* 取消：先挂起 5 秒可撤销，到点才真正写操作。挂起期间做任何别的操作、或页面被切走，
+ * 都立刻落定 —— 不能让一条「已作废」的记录因为关了页面又活过来。 */
+function cancelRec(rid) {
+  flushCancel();
+  closeSheet();
+  pendingCancel = { rid, ts: Date.now(), timer: setTimeout(flushCancel, 5000) };
+  render();
+  toast('已作废，这段时间会显示为空白', '撤销', () => {
+    if (pendingCancel && pendingCancel.rid === rid) { clearTimeout(pendingCancel.timer); pendingCancel = null; render(); }
+  }, 5000);
+}
+function flushCancel() {
+  if (!pendingCancel) return;
+  clearTimeout(pendingCancel.timer);
+  addOp('cancel', pendingCancel.rid, null, pendingCancel.ts);
+  pendingCancel = null;
+  render();
+}
+addEventListener('pagehide', flushCancel);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { flushCancel(); return; }
+  reloadQueue().then(render);   // service worker 可能在后台已经推掉了一些
+  sync();
+});
+addEventListener('online', () => sync());
+
+function editRec(rid, data) { addOp('edit', rid, data); render(); }
+
+/* ── 快捷按钮：点一下开始，长按编辑 ── */
+function startFromButton(bid) {
+  const b = buttonOf(bid); if (!b) return;
+  const run = running();
+  if (run && run.button_id === bid) { toast(`「${b.name}」已经在计时了`); return; }
+  startRecord({ name: b.name, type_id: b.type_id, button_id: b.id });
+}
+
+(function bindGrid() {
+  const grid = document.getElementById('grid');
+  let timer = null, fired = false, x0 = 0, y0 = 0;
+  const clear = () => { clearTimeout(timer); timer = null; };
+  grid.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.qb[data-bid]'); if (!el) return;
+    fired = false; x0 = e.clientX; y0 = e.clientY;
+    timer = setTimeout(() => { fired = true; navigator.vibrate?.(15); openButtonEditor(el.dataset.bid); }, 500);
+  });
+  grid.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 10) clear(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(k => grid.addEventListener(k, clear));
+  grid.addEventListener('contextmenu', e => { if (e.target.closest('.qb[data-bid]')) e.preventDefault(); });
+  grid.addEventListener('click', e => {
+    const el = e.target.closest('.qb[data-bid]'); if (!el) return;
+    if (fired) { fired = false; return; }    // 长按已经打开了编辑，别再触发一次开始
+    startFromButton(el.dataset.bid);
+  });
+})();
+
+/* ═══════════════════ 弹层 ═══════════════════ */
+let onSheetClose = null;
+function openSheet(html, onClose = null) {
+  document.getElementById('sheet').innerHTML = `<div class="grip"></div>${html}`;
+  document.getElementById('sheet').classList.add('show');
+  document.getElementById('backdrop').classList.add('show');
+  onSheetClose = onClose;
+}
+function closeSheet() {
+  const cb = onSheetClose; onSheetClose = null;
+  document.getElementById('sheet').classList.remove('show');
+  document.getElementById('backdrop').classList.remove('show');
+  if (cb) cb();
+}
+// 点遮罩 = 跳过
+document.getElementById('backdrop').addEventListener('click', closeSheet);
+
+const EST_CHOICES = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+function estChips(name) {
+  return `<div class="chips" data-est="${name}">${EST_CHOICES.map(m =>
+    `<button class="chip" type="button" data-v="${m}" onclick="pickEst('${name}',${m})">${fmtMin(m)}</button>`).join('')}</div>
+    <input type="number" inputmode="numeric" min="1" id="est-${name}" placeholder="或输入分钟数" style="margin-top:8px" oninput="pickEst('${name}',null)">`;
+}
+function pickEst(name, v) {
+  const input = document.getElementById(`est-${name}`);
+  if (v != null) input.value = v;
+  document.querySelectorAll(`[data-est="${name}"] .chip`).forEach(c => c.classList.toggle('on', +c.dataset.v === +input.value));
+}
+const readEst = name => { const v = parseInt(document.getElementById(`est-${name}`).value, 10); return v > 0 && v <= 1440 ? v : null; };
+
+function typeChips(name, selected) {
+  if (!state.types.length) return `<div class="sub">还没有类型（同步一次就有了）</div>`;
+  return `<div class="chips" data-type="${name}">${state.types.filter(t => !t.archived).map(t =>
+    `<button class="chip ${t.id === selected ? 'on' : ''}" type="button" data-v="${t.id}" onclick="pickType('${name}','${t.id}')">
+       <span class="dot" style="--tc:var(--t${t.color})"></span>${esc(t.name)}</button>`).join('')}</div>`;
+}
+function pickType(name, id) {
+  document.querySelectorAll(`[data-type="${name}"] .chip`).forEach(c => c.classList.toggle('on', c.dataset.v === id && !c.classList.contains('on')));
+}
+const readType = name => document.querySelector(`[data-type="${name}"] .chip.on`)?.dataset.v || null;
+
+/* ── 先猜后看：卡片内联选一个时长 ── */
+const GUESS_CHOICES = [10, 15, 20, 30, 45, 60, 90, 120];
+function setGuess(rid, m) { editRec(rid, { estimate: m, estimate_source: 'guess' }); }
+
+/* ── 新任务 ── */
+function openNewTask() {
+  openSheet(`
+    <h2>新任务</h2>
+    <label>名称</label>
+    <input type="text" id="nt-name" maxlength="200" placeholder="可不填，之后再补" enterkeyhint="done">
+    <label>类型</label>${typeChips('nt', null)}
+    <label>预估（可选，工作任务建议填）</label>${estChips('nt')}
+    <div class="row2">
+      <button class="btn ghost" onclick="closeSheet()">算了</button>
+      <button class="btn primary" onclick="submitNewTask()">开始计时</button>
+    </div>`);
+}
+function submitNewTask() {
+  const name = document.getElementById('nt-name').value.trim() || null;
+  const est = readEst('nt');
+  const type_id = readType('nt');
+  closeSheet();
+  startRecord({ name, type_id, estimate: est, estimate_source: est ? 'guess' : null });
+}
+
+/* ── 结束后的补填（全部可跳过） ── */
+function openEndSheet(rid) {
+  const r = recs.get(rid); if (!r) return;
+  const actual = elapsed(r) / MIN;
+  const cmp = r.estimate
+    ? `<div class="compare">
+         <div class="k"><span>预估 <b>${fmtMin(r.estimate)}</b></span><span>实际 <b>${fmtMin(actual)}</b></span></div>
+         <div class="v">${deviation(r.estimate, actual)}</div></div>`
+    : `<div class="sub">用时 ${fmtMin(actual)}</div>`;
+  const fill = r.name ? '' : `
+    <label>名称</label><input type="text" id="end-name" maxlength="200" placeholder="可跳过，保留为「未命名」">
+    <label>类型</label>${typeChips('end', r.type_id)}`;
+  openSheet(`
+    <h2>已结束：${r.name ? esc(r.name) : '未命名'}</h2>
+    ${cmp}${fill}
+    <label>备注（可选，比如为什么比预估快或慢）</label>
+    <textarea id="end-note" maxlength="5000"></textarea>
+    <div class="row2">
+      <button class="btn ghost" onclick="closeSheet()">跳过</button>
+      <button class="btn primary" onclick="submitEnd('${rid}', ${!r.name})">保存</button>
+    </div>`);
+}
+function submitEnd(rid, wasUnnamed) {
+  const data = {};
+  const note = document.getElementById('end-note').value.trim();
+  if (note) data.note = note;
+  if (wasUnnamed) {
+    const name = document.getElementById('end-name').value.trim();
+    const type = readType('end');
+    if (name) data.name = name;
+    if (type) data.type_id = type;
+  }
+  if (Object.keys(data).length) editRec(rid, data);
+  closeSheet();
+  toast('已保存');
+}
+
+/* ── 已暂停条目的更多操作 ── */
+function pausedMenu(rid) {
+  const r = recs.get(rid); if (!r) return;
+  openSheet(`
+    <h2>${r.name ? esc(r.name) : '未命名'}</h2>
+    <div class="sub">已计 ${fmtMin(elapsed(r) / MIN)}</div>
+    <button class="list-btn" onclick="resumeRec('${rid}')">恢复<span class="d">正在计时的会自动${state.settings.switch_behavior === 'end' ? '结束' : '暂停'}</span></button>
+    <button class="list-btn" onclick="closeSheet();endRec('${rid}')">结束</button>
+    <button class="list-btn" onclick="cancelRec('${rid}')">作废<span class="d">误点了，整条不留</span></button>`);
+}
+
+/* ── 快捷按钮编辑（也走操作日志：离线时长按改按钮同样能记下） ── */
+let editing = null;
+const btnFields = b => ({ name: b.name, type_id: b.type_id ?? null, guess_first: !!b.guess_first,
+                          initial_estimate: b.initial_estimate ?? null, order: b.order ?? 0 });
+function openButtonEditor(bid) {
+  const b = bid ? buttonOf(bid) : null;
+  editing = { id: bid, guess_first: b ? !!b.guess_first : false };
+  const idx = b ? buttons.indexOf(b) : -1;
+  openSheet(`
+    <h2>${b ? '编辑快捷按钮' : '新建快捷按钮'}</h2>
+    <label>名称</label><input type="text" id="be-name" maxlength="200" value="${b ? esc(b.name) : ''}" placeholder="比如：拖地">
+    <label>类型</label>${typeChips('be', b ? b.type_id : null)}
+    <label>初始预估（分钟，可选；有记录后改用历史参考）</label>
+    <input type="number" inputmode="numeric" min="1" max="1440" id="be-est" value="${b && b.initial_estimate ? b.initial_estimate : ''}">
+    <div class="switch-row">
+      <div class="txt">先猜后看<small>按钮上不显示历史参考，计时卡片里可以顺手点一个预估（不点就不估）。适合工作任务</small></div>
+      <button type="button" class="switch ${editing.guess_first ? 'on' : ''}" id="be-guess"
+              onclick="editing.guess_first=!editing.guess_first;this.classList.toggle('on',editing.guess_first)"></button>
+    </div>
+    ${b ? `<label>位置</label>
+    <div class="chips">
+      <button class="chip" type="button" ${idx === 0 ? 'disabled' : ''} onclick="moveButton('${bid}',-1)">← 往前</button>
+      <button class="chip" type="button" ${idx === buttons.length - 1 ? 'disabled' : ''} onclick="moveButton('${bid}',1)">往后 →</button>
+    </div>` : ''}
+    <div class="row2">
+      <button class="btn ghost" onclick="closeSheet()">取消</button>
+      <button class="btn primary" onclick="saveButton()">保存</button>
+    </div>
+    ${b ? `<button class="danger-link" onclick="deleteButton('${bid}')">删除这个按钮（已有记录保留）</button>` : ''}`);
+}
+function saveButton() {
+  const name = document.getElementById('be-name').value.trim();
+  if (!name) { toast('名称不能空'); return; }
+  const est = parseInt(document.getElementById('be-est').value, 10);
+  const old = editing.id ? buttonOf(editing.id) : null;
+  const order = old ? (old.order ?? 0) : Math.max(0, ...buttons.map(b => (b.order ?? 0) + 1));
+  addOp('button.put', editing.id || uuid(), {
+    name, type_id: readType('be'), initial_estimate: est > 0 && est <= 1440 ? est : null,
+    guess_first: editing.guess_first, order,
+  });
+  closeSheet(); render();
+}
+function moveButton(bid, d) {
+  const i = buttons.findIndex(b => b.id === bid), j = i + d;
+  if (j < 0 || j >= buttons.length) return;
+  // 重新编号整列：老数据的 order 可能全是 0，只交换两个值等于没换
+  const list = buttons.slice();
+  [list[i], list[j]] = [list[j], list[i]];
+  const ts = Date.now();
+  list.forEach((b, k) => { if ((b.order ?? 0) !== k) addOp('button.put', b.id, { ...btnFields(b), order: k }, ts); });
+  render(); openButtonEditor(bid);
+}
+function deleteButton(bid) {
+  const b = buttonOf(bid);
+  if (!confirm(`删除「${b.name}」？已有的记录不受影响。`)) return;
+  addOp('button.delete', bid);
+  closeSheet(); render();
+}
+
+/* ── 设置 ── */
+let pickSwitch = null;
+async function openSettings() {
+  const has = !!(await TL.kvGet('token'));
+  const rejected = (await TL.kvGet('rejected')) || [];
+  pickSwitch = state.settings.switch_behavior || 'pause';
+  const at = state.synced_at ? new Date(state.synced_at).toLocaleString('zh-CN', { hour12: false }) : '还没有';
+  const s = state.settings;
+  openSheet(`
+    <h2>设置</h2>
+    <label>访问令牌</label>
+    <input type="password" id="st-token" autocomplete="off" placeholder="${has ? '已设置，留空不改' : '和面板用的是同一个'}">
+    <label>开始新任务时，正在计时的那条</label>
+    <div class="chips" id="st-switch">
+      ${['pause', 'end'].map(v => `<button class="chip ${pickSwitch === v ? 'on' : ''}" type="button" data-v="${v}"
+        onclick="pickSwitch='${v}';document.querySelectorAll('#st-switch .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===pickSwitch))">
+        ${v === 'pause' ? '自动暂停' : '自动结束'}</button>`).join('')}
+    </div>
+    <label>提醒</label>
+    <div class="sub">空闲 ${s.idle_remind_minutes ?? 30} 分钟、或计时远超预估时，推到 ntfy 的
+      <b>${esc(state.notify_topic || '…')}</b>（手机上的 ntfy 要订阅它）。
+      ${esc(s.quiet_start || '20:00')}–${esc(s.quiet_end || '08:00')}${s.quiet_weekends === false ? '' : '和周末'}静音。</div>
+    <button class="list-btn" onclick="muteToday()">今天不再提醒</button>
+    <div class="sub" style="margin-top:14px">上次同步：${esc(at)}${rejected.length ? ` · 被服务端拒收过 ${rejected.length} 条` : ''}</div>
+    <div class="row2">
+      <button class="btn ghost" onclick="closeSheet()">关闭</button>
+      <button class="btn primary" onclick="saveSettings()">保存</button>
+    </div>`);
+}
+async function saveSettings() {
+  const tok = document.getElementById('st-token').value.trim();
+  const sw = pickSwitch;
+  closeSheet();
+  if (tok) await TL.kvSet('token', tok);
+  await sync();
+  if (sw !== (state.settings.switch_behavior || 'pause')) {
+    const r = await TL.api('PATCH', '/api/timelog/settings', { switch_behavior: sw });
+    if (r.status === 'ok') { state.settings = r.body; render(); toast('已保存'); }
+    else toast('切换方式没保存上（需要联网）');
+  } else if (tok) toast(net.status === 'ok' ? '令牌已保存，已同步' : '令牌已保存');
+}
+async function muteToday() {
+  closeSheet();
+  const r = await TL.api('POST', '/api/timelog/mute-today');
+  toast(r.status === 'ok' ? '今天不再提醒' : '没设上（需要联网），稍后再试');
+}
+
+/* ═══════════════════ toast ═══════════════════ */
+let toastTimer = null;
+function toast(msg, btnText = '', onBtn = null, ms = 2500) {
+  const el = document.getElementById('toast'), btn = document.getElementById('toast-btn');
+  document.getElementById('toast-msg').textContent = msg;
+  btn.textContent = btnText;
+  btn.onclick = () => { el.classList.remove('show'); onBtn && onBtn(); };
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+/* ═══════════════════ URL 动作：桌面快捷方式 + 通知上的按钮 ═══════════════════ */
+function handleUrlAction() {
+  const a = new URLSearchParams(location.search).get('action');
+  if (!a) return;
+  history.replaceState(null, '', location.pathname);   // 去掉参数：刷新不应重复执行
+  if (a === 'start-now') return startNow();
+  if (a === 'mute-today') return muteToday();
+  const r = current();
+  if (!r) return toast('现在没有计时中的任务');
+  const name = r.name || '未命名';
+  if (a === 'pause') {          // 超时提醒上的「暂停」：只暂停，已经暂停了就不动
+    if (r.status === 'running') { pauseRec(r.id); toast(`已暂停：${name}`); }
+    else toast(`「${name}」本来就是暂停的`);
+    return;
+  }
+  if (a === 'toggle') return r.status === 'running' ? (pauseRec(r.id), toast(`已暂停：${name}`))
+                                                    : (resumeRec(r.id), toast(`已恢复：${name}`));
+  if (a === 'end') return endRec(r.id);
+}
+
+/* ═══════════════════ 启动 ═══════════════════ */
+(async function init() {
+  localStorage.removeItem('timelog-proto-v1');            // 第 1 步原型留下的假数据
+  if (!(await TL.kvGet('token'))) {
+    // 同源的面板页存过令牌就直接沿用（panel. 与 /timelog 同一个 origin）
+    const t = localStorage.getItem('myspiders-token');
+    if (t) await TL.kvSet('token', t);
+  }
+  state = { ...EMPTY, ...((await TL.kvGet('state')) || {}) };
+  await reloadQueue();
+  render();
+  handleUrlAction();
+  setInterval(tick, 1000);
+  await sync();
+  if (net.status === 'no-token') openSettings();
+  // 待同步时每 30 秒重试；平时每 2 分钟刷新一次（按钮的参考时长、网页上的修改）
+  setInterval(() => {
+    const age = Date.now() - (state.synced_at || 0);
+    if (!document.hidden && (queue.length || age > 120000)) sync();
+  }, 30000);
+  // 尽量别让浏览器在存储紧张时清掉 IndexedDB（里面可能有还没同步的操作）
+  navigator.storage?.persist?.().catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/timelog/sw.js', { scope: '/timelog' }).catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

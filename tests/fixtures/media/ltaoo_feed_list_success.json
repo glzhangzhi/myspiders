@@ -1,0 +1,86 @@
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "errCode": 0,
+    "errMsg": "ok",
+    "data": {
+      "BaseResponse": {
+        "Ret": 0,
+        "ErrMsg": {
+          "String": ""
+        }
+      },
+      "object": [
+        {
+          "id": "14545102784038246591",
+          "contact": {
+            "username": "v2_7600364ee2c26ebeec00e9b9@finder",
+            "nickname": "我不叫螃蟹.",
+            "headUrl": "https://example.invalid/headUrl/1077032e",
+            "signature": "这是一段测试签名",
+            "coverImgUrl": ""
+          },
+          "objectDesc": {
+            "description": "测试视频描述 #测试话题",
+            "media": [
+              {
+                "url": "https://example.invalid/url/bc6178cf",
+                "mediaType": 4,
+                "videoPlayLen": 7,
+                "width": 1080,
+                "height": 1920,
+                "fileSize": 11557355,
+                "spec": [
+                  {
+                    "fileFormat": "xWT111",
+                    "width": 720,
+                    "height": 1280,
+                    "durationMs": 7233
+                  },
+                  {
+                    "fileFormat": "xWT112",
+                    "width": 576,
+                    "height": 1024,
+                    "durationMs": 7233
+                  },
+                  {
+                    "fileFormat": "xWT156",
+                    "width": 720,
+                    "height": 1280,
+                    "durationMs": 7233
+                  },
+                  {
+                    "fileFormat": "xWT113",
+                    "width": 576,
+                    "height": 1024,
+                    "durationMs": 7233
+                  },
+                  {
+                    "fileFormat": "xWT157",
+                    "width": 576,
+                    "height": 1024,
+                    "durationMs": 7233
+                  },
+                  {
+                    "fileFormat": "xWT158",
+                    "width": 576,
+                    "height": 1024,
+                    "durationMs": 7233
+                  }
+                ],
+                "coverUrl": "https://example.invalid/coverUrl/cae50e5b",
+                "decodeKey": "123456789",
+                "urlToken": "&token=TESTTOKEN"
+              }
+            ],
+            "mediaType": 4
+          },
+          "objectNonceId": "17453311911488030792_0_0_2_33_5217681364151768_78fbb070-eeed-11f0-9e01-614e44bc5b79",
+          "source_url": "",
+          "createtime": 1733911369
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 小镇</title>
+<link rel="stylesheet" href="/dashboard/theme.css">
+<style>
+  /* 配色只走 theme.css 的变量；强调色用 --accent，--green 只给成功/在线态。 */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.7 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 16px 60px; }
+  header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  .sub { color: var(--text-dim); font-size: 12px; }
+  .spacer { flex: 1; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  button { font: inherit; padding: 5px 12px; border-radius: 7px; cursor: pointer;
+           background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+  button.primary:hover:not(:disabled) { color: var(--bg); filter: brightness(1.1); }
+  button.danger:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+  button.sm { font-size: 12px; padding: 3px 9px; }
+  select, input, textarea { font: inherit; padding: 5px 9px; border-radius: 7px;
+           background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  textarea { width: 100%; resize: vertical; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card h2 { font-size: 12px; margin: 0 0 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .04em; }
+  .pill { display: inline-block; padding: 0 8px; border-radius: 999px; font-size: 11px;
+          border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); }
+  .pill.acc { color: var(--accent); border-color: var(--accent); }
+  .pill.ok { color: var(--green); border-color: var(--green); }
+  .pill.warn { color: var(--yellow); border-color: var(--yellow); }
+  .pill.bad { color: var(--red); border-color: var(--red); }
+  .dim { color: var(--text-dim); }
+  .small { font-size: 12px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+
+  /* 进度条 */
+  .prog { margin-top: 10px; display: none; }
+  .prog.on { display: block; }
+  .prog .track { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .prog .fill { height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+
+  /* 地图 */
+  .map { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .place { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+           padding: 9px 10px; min-height: 92px; cursor: default; }
+  .place.home { border-style: dashed; }
+  .place.has { border-color: var(--accent); cursor: pointer; }
+  .place .pn { font-weight: 600; font-size: 13px; }
+  .place .pd { font-size: 11px; color: var(--text-dim); margin-top: 2px;
+               display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .faces { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+  .face { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border);
+          background: var(--surface); cursor: pointer; }
+  .face.lg { width: 44px; height: 44px; }
+
+  /* 日 */
+  .days { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+  .dbtn { padding: 2px 9px; font-size: 12px; border-radius: 6px; }
+  .dbtn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+  .dbtn.bad { border-color: var(--red); color: var(--red); }
+  .scene { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
+  .scene:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+  .scene h3 { margin: 0; font-size: 17px; }
+  .scene .meta { font-size: 12px; color: var(--text-dim); margin: 2px 0 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .prose { font-size: 15px; line-height: 1.95; white-space: pre-wrap; }
+  .plans { font-size: 12px; color: var(--text-dim); background: var(--surface2); border-radius: 8px;
+           padding: 8px 10px; margin-bottom: 10px; }
+  .plans b { color: var(--text); font-weight: 600; }
+  .facts { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .warn { font-size: 12px; color: var(--yellow); margin-top: 6px; }
+  details > summary { cursor: pointer; color: var(--text-dim); font-size: 12px; }
+
+  /* 居民 */
+  .res { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--border); cursor: pointer; }
+  .res:last-child { border-bottom: 0; }
+  .res:hover .rn { color: var(--accent); }
+  .res .rn { font-weight: 600; }
+  .res .rg { font-size: 12px; color: var(--text-dim); }
+
+  /* 弹窗 */
+  .mask { display: none; position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.6);
+          align-items: center; justify-content: center; padding: 20px; }
+  .mask.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+           width: min(900px, 100%); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+  .modal .mh { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .modal .mh h3 { margin: 0; font-size: 16px; }
+  .modal .mb { padding: 14px 16px; overflow-y: auto; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tabs button.active { border-color: var(--accent); color: var(--accent); }
+  .entry { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .entry .ec { flex: 1; min-width: 0; }
+  .entry .ep { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry.off { opacity: .5; }
+  .diary { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .diary .dh { font-size: 12px; color: var(--text-dim); display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* 建镇 */
+  .pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-top: 10px; }
+  .pc { border: 1px solid var(--border); border-radius: 8px; padding: 6px; text-align: center; cursor: pointer;
+        font-size: 12px; background: var(--surface2); }
+  .pc img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 6px; background: var(--surface); }
+  .pc.sel { border-color: var(--accent); background: var(--accent-bg); }
+  .chosen { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 2px; border-radius: 999px;
+          border: 1px solid var(--accent); font-size: 12px; }
+  .chip img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+  .chip button { padding: 0 6px; border: 0; background: none; }
+  .empty { color: var(--text-dim); text-align: center; padding: 40px 0; }
+  .msg { font-size: 12px; min-height: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🏘️ AI 小镇</h1>
+    <select id="town-sel" title="切换小镇"></select>
+    <button class="sm" onclick="openCreate()">＋ 建一个新镇</button>
+    <span class="spacer"></span>
+    <span id="cost" class="sub"></span>
+  </header>
+
+  <div id="main"></div>
+</div>
+
+<!-- 居民详情 -->
+<div id="res-mask" class="mask" onclick="if(event.target===this)closeMask('res-mask')">
+  <div class="modal">
+    <div class="mh"><img id="res-face" class="face lg" alt=""><h3 id="res-title"></h3><span id="res-sub" class="sub"></span>
+      <span class="spacer"></span><button class="sm" onclick="closeMask('res-mask')">关闭</button></div>
+    <div class="mb" id="res-body"></div>
+  </div>
+</div>
+
+<!-- 建镇 -->
+<div id="new-mask" class="mask" onclick="if(event.target===this)closeMask('new-mask')">
+  <div class="modal">
+    <div class="mh"><h3>建一个新镇</h3><span class="spacer"></span><button class="sm" onclick="closeMask('new-mask')">关闭</button></div>
+    <div class="mb">
+      <div class="row">
+        <input id="new-name" placeholder="小镇名字（可留空）" style="flex:1;min-width:180px">
+      </div>
+      <div class="row" style="margin-top:10px">
+        <span class="small dim">「我」：</span>
+        <select id="new-persona"></select>
+        <span class="small dim">也由 AI 扮演；选「不加入」就是纯旁观</span>
+      </div>
+      <div class="small dim" style="margin-top:12px">居民（尽量选单人卡）：</div>
+      <div id="new-chosen" class="chosen"></div>
+      <div class="row">
+        <input id="new-q" placeholder="搜索酒馆里的角色卡…" style="flex:1;min-width:180px" oninput="searchCards()">
+      </div>
+      <div id="new-results" class="pick"></div>
+      <div class="row" style="margin-top:14px">
+        <span id="new-msg" class="msg dim"></span><span class="spacer"></span>
+        <button class="primary" onclick="createTown()">入住</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* admin token：键名必须是全站统一的 myspiders-token（见 common.js 的 getToken）。 */
+const TOKEN_KEY = 'myspiders-token';
+function tok(force) {
+  let t = localStorage.getItem(TOKEN_KEY) || '';
+  if (!t || force) {
+    const typed = prompt(force ? '令牌不对，请重新输入' : '管理员令牌', t);
+    if (typed === null) return '';
+    t = typed.trim();
+    if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY);
+  }
+  return t;
+}
+async function authFetch(url, opts = {}, retried) {
+  const t = tok(retried);
+  if (!t) throw new Error('已取消');
+  const r = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', ...(opts.headers || {}), 'x-token': t } });
+  if (r.status === 401 && !retried) { localStorage.removeItem(TOKEN_KEY); return authFetch(url, opts, true); }
+  return r;
+}
+async function errText(r) { try { const d = await r.json(); return d.detail || JSON.stringify(d); } catch { return 'HTTP ' + r.status; } }
+
+const avatar = (kind, file) => `/api/town/avatar?kind=${kind}&file=${encodeURIComponent(file)}`;
+const yuan = v => '¥' + (v || 0).toFixed(v >= 1 ? 2 : 3);
+
+let TOWNS = [], TOWN = null, CUR_DAY = null, POLL = null;
+const TID_KEY = 'town-current';
+
+/* ── 镇列表 ── */
+async function loadTowns(selectId) {
+  const r = await fetch('/api/town/towns');
+  TOWNS = (await r.json()).towns || [];
+  const sel = $('town-sel');
+  sel.innerHTML = TOWNS.map(t => `<option value="${t.id}">${esc(t.name)} · 第 ${t.day} 天</option>`).join('');
+  const want = selectId || localStorage.getItem(TID_KEY);
+  const pick = TOWNS.find(t => t.id === want) || TOWNS[0];
+  sel.style.display = TOWNS.length ? '' : 'none';
+  if (!pick) {
+    $('main').innerHTML = `<div class="card empty">还没有小镇。<br><br><button class="primary" onclick="openCreate()">建一个</button></div>`;
+    $('cost').textContent = '';
+    return;
+  }
+  sel.value = pick.id;
+  await loadTown(pick.id);
+}
+$('town-sel').onchange = e => { CUR_DAY = null; loadTown(e.target.value); };
+
+async function loadTown(id, keepDay) {
+  localStorage.setItem(TID_KEY, id);
+  const r = await fetch('/api/town/towns/' + id);
+  if (!r.ok) { $('main').innerHTML = `<div class="card empty">${esc(await errText(r))}</div>`; return; }
+  TOWN = await r.json();
+  const c = TOWN.cost || {};
+  const hitRate = c.input ? Math.round(100 * (c.cache_hit || 0) / c.input) : 0;
+  $('cost').textContent = `累计 ${yuan(c.yuan)} · ${c.calls || 0} 次调用 · 缓存命中 ${hitRate}% · ${TOWN.model}${TOWN.thinking ? '（思考）' : ''}`;
+  if (!keepDay || CUR_DAY == null) {
+    const done = TOWN.days.filter(d => d.status === 'done');
+    CUR_DAY = TOWN.days.length ? TOWN.days[TOWN.days.length - 1].day : null;
+    if (done.length && TOWN.days[TOWN.days.length - 1].status !== 'done' && !TOWN.running) CUR_DAY = TOWN.days[TOWN.days.length - 1].day;
+  }
+  render();
+  if (TOWN.running) startPoll(); else stopPoll();
+}
+
+/* ── 主体 ── */
+function resById(id) { return TOWN.residents.find(r => r.id === id); }
+function faceImg(r, cls = '') {
+  return `<img class="face ${cls}" src="${avatar(r.kind, r.file)}" title="${esc(r.name)}" alt="${esc(r.name)}" onclick="event.stopPropagation();openRes('${r.id}')" loading="lazy">`;
+}
+
+function render() {
+  const t = TOWN;
+  const nextDay = t.day + 1;
+  const last = t.days[t.days.length - 1];
+  const pendingResume = last && last.day === nextDay && last.status !== 'done' && !t.running;
+  const stepLabel = t.running ? '进行中…' : pendingResume ? `继续第 ${nextDay} 天` : `▶ 过第 ${nextDay} 天`;
+
+  const where = t.where || {};
+  const byPlace = {};
+  for (const [rid, pid] of Object.entries(where)) (byPlace[pid] = byPlace[pid] || []).push(rid);
+  const owner = Object.fromEntries(t.residents.map(r => [r.home, r]));
+
+  const map = t.places.map(p => {
+    const here = (byPlace[p.id] || []).map(resById).filter(Boolean);
+    const desc = p.kind === 'home' ? `${owner[p.id] ? esc(owner[p.id].name) + ' 的家' : ''}` : esc(p.desc || (p.facts && p.facts[0]) || '');
+    return `<div class="place ${p.kind === 'home' ? 'home' : ''} ${here.length ? 'has' : ''}" ${here.length ? `onclick="jumpScene('${p.id}')"` : ''}>
+      <div class="pn">${esc(p.name)}</div><div class="pd">${desc}</div>
+      <div class="faces">${here.map(r => faceImg(r)).join('')}</div></div>`;
+  }).join('');
+
+  const dayBtns = t.days.map(d => {
+    const cls = d.day === CUR_DAY ? 'active' : (d.status === 'failed' || d.status === 'interrupted') ? 'bad' : '';
+    return `<button class="dbtn ${cls}" onclick="showDay(${d.day})">第${d.day}天${d.status !== 'done' ? ' ·' + statusText(d.status) : ''}</button>`;
+  }).join('');
+
+  const residents = t.residents.map(r => {
+    const home = t.places.find(p => p.id === r.home);
+    return `<div class="res" onclick="openRes('${r.id}')">${faceImg(r, 'lg')}
+      <div style="min-width:0"><div><span class="rn">${esc(r.name)}</span> ${r.is_me ? '<span class="pill acc">我</span>' : ''}
+        ${r.mood ? `<span class="pill">${esc(r.mood)}</span>` : ''}</div>
+        <div class="rg">${esc(home ? home.name : '')} · 设定 ${(r.stats.profile_chars / 1000).toFixed(1)}k 字${r.stats.keyed ? ` + ${r.stats.keyed} 条关键词` : ''}</div>
+        ${r.goal ? `<div class="rg">想：${esc(r.goal)}</div>` : ''}</div></div>`;
+  }).join('');
+
+  $('main').innerHTML = `
+  <div class="layout">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="row">
+          <h2 style="margin:0">${esc(t.name)} · 已过 ${t.day} 天</h2><span class="spacer"></span>
+          <button class="primary" id="step-btn" onclick="step()" ${t.running ? 'disabled' : ''}>${stepLabel}</button>
+        </div>
+        <div class="prog" id="prog"><div class="row small dim"><span id="prog-text"></span><span class="spacer"></span><span id="prog-n"></span></div>
+          <div class="track"><div class="fill" id="prog-fill"></div></div></div>
+        <div style="margin-top:12px" class="map">${map}</div>
+        <div class="small dim" style="margin-top:8px">${t.days.length ? '地图显示最近完成那一天每个人在哪；点亮的地点可以点开看当天的戏。' : '还没开始。点「过第 1 天」：每个人醒来、决定去哪，然后看各个地点发生了什么。'}</div>
+      </div>
+      <div class="card">
+        ${t.days.length ? `<div class="days">${dayBtns}</div>` : ''}
+        <div id="day-body">${t.days.length ? '' : '<div class="empty">还没有故事。</div>'}</div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:16px"><h2>居民</h2>${residents}</div>
+      <div class="card" style="margin-bottom:16px"><h2>小镇设定</h2>
+        <div class="small dim" style="margin-bottom:6px">这个镇本身的客观事实，每场戏都会带上。几场戏是同时写的、互相看不见，镇上有没有别人、出不出得去这类事必须写在这里，否则各场会自相矛盾。</div>
+        <textarea id="lore-ta" rows="5">${esc(t.lore || '')}</textarea>
+        <div class="row" style="margin-top:6px"><span id="lore-msg" class="msg dim"></span><span class="spacer"></span><button class="sm" onclick="saveLore()">保存</button></div>
+      </div>
+      <div class="card"><h2>地点</h2>
+        <div class="small dim" style="margin-bottom:6px">公共设施可以增删改名、写描述；居民房跟着人，不能删。描述留空的话，它是什么样子由第一个去的人的那场戏来定。</div>
+        <div id="places-edit">${placesEditor()}</div>
+        <div class="row" style="margin-top:8px"><button class="sm" onclick="addPlace()">＋ 地点</button><span class="spacer"></span><button class="sm" onclick="savePlaces()">保存地点</button></div>
+      </div>
+      <div class="card" style="margin-top:16px"><h2>危险操作</h2>
+        <div class="row"><button class="sm danger" onclick="rollbackTo()">回退到第 N 天…</button>
+        <button class="sm danger" onclick="deleteTown()">删除这个镇</button></div>
+        <div class="small dim" style="margin-top:6px">回退会删掉之后的所有场景和日记（不可恢复），用来「这天不满意，重来」。</div>
+      </div>
+    </div>
+  </div>`;
+  if (CUR_DAY != null) showDay(CUR_DAY, true);
+  if (t.running && t.progress) paintProgress(t.progress);
+}
+
+function statusText(s) {
+  return { running: '进行中', failed: '失败', interrupted: '被中断', done: '完成' }[s] || s;
+}
+
+/* ── 一天 ── */
+async function showDay(day, quiet) {
+  CUR_DAY = day;
+  document.querySelectorAll('.dbtn').forEach(b => b.classList.toggle('active', b.textContent.startsWith('第' + day + '天')));
+  const box = $('day-body');
+  if (!quiet) box.innerHTML = '<div class="dim small">加载中…</div>';
+  const r = await fetch(`/api/town/towns/${TOWN.id}/days/${day}`);
+  if (!r.ok) { box.innerHTML = `<div class="warn">${esc(await errText(r))}</div>`; return; }
+  const d = await r.json();
+  const placeName = pid => (TOWN.places.find(p => p.id === pid) || {}).name || pid;
+  let html = '';
+  if (d.status !== 'done') {
+    const tone = d.status === 'running' ? 'acc' : 'bad';
+    html += `<div class="row" style="margin-bottom:10px"><span class="pill ${tone}">${statusText(d.status)}</span>
+      ${d.error ? `<span class="small" style="color:var(--red)">${esc(d.error)}</span>` : ''}</div>`;
+    if (d.status !== 'running') html += `<div class="small dim" style="margin-bottom:10px">已完成的部分都保存着；点上面「继续第 ${d.day} 天」只补没做完的，不会重跑。</div>`;
+  }
+  const scenes = Object.values(d.scenes || {});
+  // 场景按「人多的在前」排：多人戏才是主菜
+  scenes.sort((a, b) => (b.members || []).length - (a.members || []).length);
+  for (const sc of scenes) {
+    const members = (sc.members || []).map(resById).filter(Boolean);
+    const plans = members.map(m => {
+      const p = (d.plans || {})[m.id] || {};
+      return `<div><b>${esc(m.name)}</b>：${esc(p.thought || '')}${p.intent ? ` <span class="dim">→ ${esc(p.intent)}</span>` : ''}</div>`;
+    }).join('');
+    html += `<div class="scene" id="scene-${sc.place}">
+      <h3>${esc(sc.title || placeName(sc.place))}</h3>
+      <div class="meta"><span>📍 ${esc(sc.place_name || placeName(sc.place))}</span><span class="faces">${members.map(m => faceImg(m)).join('')}</span>
+        ${members.length === 1 ? '<span class="pill">独处</span>' : ''}</div>
+      <details style="margin-bottom:8px"><summary>出门前各自在想什么</summary><div class="plans" style="margin-top:6px">${plans}</div></details>
+      <div class="prose">${esc(sc.body)}</div>
+      ${(sc.place_facts || []).length ? `<div class="facts">📌 关于这里：${sc.place_facts.map(esc).join('；')}</div>` : ''}
+      ${(sc.warnings || []).length ? `<div class="warn">⚠ ${sc.warnings.map(esc).join('；')}</div>` : ''}
+    </div>`;
+  }
+  // 计划已出、场景还没出的人
+  const done = new Set(scenes.flatMap(s => s.members || []));
+  const waiting = Object.entries(d.plans || {}).filter(([rid]) => !done.has(rid));
+  if (waiting.length) {
+    html += `<div class="plans" style="margin-top:12px">${waiting.map(([rid, p]) => {
+      const m = resById(rid); return `<div><b>${esc(m ? m.name : rid)}</b> 去了 ${esc(placeName(p.place))}：${esc(p.thought || '')}</div>`; }).join('')}</div>`;
+  }
+  const c = d.cost || {};
+  if (c.calls) html += `<div class="small dim" style="margin-top:14px">这一天：${c.calls} 次调用 · ${yuan(c.yuan)} · 输入 ${(c.input / 1000).toFixed(0)}k（缓存命中 ${c.input ? Math.round(100 * c.cache_hit / c.input) : 0}%）· 输出 ${(c.output / 1000).toFixed(1)}k${d.seconds ? ` · 用时 ${Math.round(d.seconds)} 秒` : ''}</div>`;
+  if (!html) html = '<div class="dim small">这一天还没有内容。</div>';
+  box.innerHTML = html;
+}
+function jumpScene(pid) {
+  const el = document.getElementById('scene-' + pid);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── 过一天 ── */
+async function step() {
+  const btn = $('step-btn'); btn.disabled = true;
+  const r = await authFetch(`/api/town/towns/${TOWN.id}/step`, { method: 'POST' }).catch(e => ({ ok: false, _e: e }));
+  if (!r.ok) { alert(r._e ? r._e.message : await errText(r)); btn.disabled = false; return; }
+  CUR_DAY = TOWN.day + 1;
+  await loadTown(TOWN.id, true);
+}
+function startPoll() {
+  if (POLL) return;
+  POLL = setInterval(async () => {
+    const r = await fetch('/api/town/towns/' + TOWN.id);
+    if (!r.ok) return;
+    const t = await r.json();
+    if (t.running) {
+      if (t.progress) paintProgress(t.progress);
+      // 场景是一场一场落库的：有新的就刷当前这天
+      const d = t.days.find(x => x.day === CUR_DAY);
+      const n = d ? Object.keys(d.scenes || {}).length : 0;
+      if (n !== (startPoll._n || 0)) { startPoll._n = n; TOWN.days = t.days; showDay(CUR_DAY, true); }
+    } else { stopPoll(); startPoll._n = 0; loadTown(TOWN.id, true); loadTownsQuiet(); }
+  }, 3000);
+}
+function stopPoll() { if (POLL) clearInterval(POLL); POLL = null; }
+function paintProgress(p) {
+  const el = $('prog'); if (!el) return;
+  el.classList.add('on');
+  $('prog-text').textContent = `第 ${p.day} 天 · ${p.phase || ''}`;
+  $('prog-n').textContent = `${p.done || 0} / ${p.total || 0}`;
+  const phases = ['早上', '白天', '晚上'];
+  const i = Math.max(0, phases.findIndex(x => (p.phase || '').startsWith(x)));
+  const frac = (i + (p.total ? p.done / p.total : 0)) / 3;
+  $('prog-fill').style.setProperty('width', Math.round(frac * 100) + '%');
+}
+async function loadTownsQuiet() {
+  const r = await fetch('/api/town/towns'); TOWNS = (await r.json()).towns || [];
+  $('town-sel').innerHTML = TOWNS.map(t => `<option value="${t.id}" ${t.id === TOWN.id ? 'selected' : ''}>${esc(t.name)} · 第 ${t.day} 天</option>`).join('');
+}
+
+/* ── 地点编辑 ── */
+let PLACES_DRAFT = null;
+function placesEditor() {
+  PLACES_DRAFT = TOWN.places.map(p => ({ ...p }));
+  return placeRows();
+}
+function placeRows() {
+  return PLACES_DRAFT.map((p, i) => `<div class="row" style="margin-bottom:6px">
+    ${p.kind === 'home' ? `<span style="width:70px" class="small">${esc(p.name)}</span>` :
+      `<input style="width:90px" value="${esc(p.name)}" oninput="PLACES_DRAFT[${i}].name=this.value">`}
+    <input style="flex:1;min-width:0" placeholder="${(p.facts || []).length ? esc(p.facts[0]) : '描述（可空）'}" value="${esc(p.desc || '')}" oninput="PLACES_DRAFT[${i}].desc=this.value">
+    ${p.kind === 'home' ? '' : `<button class="sm danger" title="删除" onclick="PLACES_DRAFT.splice(${i},1);redrawPlaces()">✕</button>`}
+  </div>`).join('');
+}
+function redrawPlaces() { $('places-edit').innerHTML = placeRows(); }
+function addPlace() { PLACES_DRAFT.push({ name: '', kind: 'public', desc: '' }); redrawPlaces(); }
+async function savePlaces() {
+  const r = await authFetch(`/api/town/towns/${TOWN.id}/places`, { method: 'PUT', body: JSON.stringify({ places: PLACES_DRAFT }) }).catch(e => ({ ok: false, _e: e }));
+  if (!r.ok) { alert(r._e ? r._e.message : await errText(r)); return; }
+  await loadTown(TOWN.id, true);
+}
+
+async function saveLore() {
+  const r = await authFetch(`/api/town/towns/${TOWN.id}/lore`, { method: 'PUT', body: JSON.stringify({ lore: $('lore-ta').value }) }).catch(e => ({ ok: false, _e: e }));
+  $('lore-msg').textContent = r.ok ? '已保存，下一天起生效' : (r._e ? r._e.message : await errText(r));
+  if (r.ok) TOWN.lore = $('lore-ta').value;
+}
+
+async function rollbackTo() {
+  const v = prompt(`回退到第几天结束时？（0 = 回到入住前；当前已过 ${TOWN.day} 天）\n之后的场景和日记会被永久删除。`);
+  if (v === null || v.trim() === '') return;
+  const n = parseInt(v, 10);
+  if (isNaN(n) || n < 0) return alert('请输入非负整数');
+  const r = await authFetch(`/api/town/towns/${TOWN.id}/rollback`, { method: 'POST', body: JSON.stringify({ to_day: n }) }).catch(e => ({ ok: false, _e: e }));
+  if (!r.ok) { alert(r._e ? r._e.message : await errText(r)); return; }
+  CUR_DAY = null; await loadTown(TOWN.id); loadTownsQuiet();
+}
+async function deleteTown() {
+  if (!confirm(`删除「${TOWN.name}」？全部日记和场景会一起删除，不可恢复。`)) return;
+  const r = await authFetch(`/api/town/towns/${TOWN.id}`, { method: 'DELETE' }).catch(e => ({ ok: false, _e: e }));
+  if (!r.ok) { alert(r._e ? r._e.message : await errText(r)); return; }
+  localStorage.removeItem(TID_KEY); CUR_DAY = null; loadTowns();
+}
+
+/* ── 居民详情 ── */
+let RES = null, RES_TAB = 'diary';
+async function openRes(id) {
+  $('res-mask').classList.add('open');
+  $('res-body').innerHTML = '<div class="dim small">加载中…</div>';
+  const r = await fetch('/api/town/residents/' + id);
+  RES = await r.json();
+  $('res-face').src = avatar(RES.kind, RES.file);
+  $('res-title').textContent = RES.name;
+  $('res-sub').textContent = `${RES.is_me ? '我 · ' : ''}${RES.book || ''} · 入住时快照 ${String(RES.snapshot_at || '').slice(0, 10)}`;
+  paintRes();
+}
+function paintRes() {
+  const R = RES, s = R.stats;
+  const tabs = [['diary', `日记（${R.memories.length}）`], ['lore', `设定（${s.constant} 常驻 / ${s.keyed} 关键词 / ${s.excluded} 排除）`], ['note', '小镇补充']];
+  let html = `<div class="tabs">${tabs.map(([k, l]) => `<button class="sm ${RES_TAB === k ? 'active' : ''}" onclick="RES_TAB='${k}';paintRes()">${l}</button>`).join('')}</div>`;
+  if (RES_TAB === 'diary') {
+    const imp = Object.entries(R.impressions || {});
+    if (R.mood || R.goal || imp.length) {
+      html += `<div class="plans">${R.mood ? `<div><b>心情</b>：${esc(R.mood)}</div>` : ''}${R.goal ? `<div><b>想做</b>：${esc(R.goal)}</div>` : ''}
+        ${imp.map(([k, v]) => `<div><b>对 ${esc(k)}</b>：${esc(v)}</div>`).join('')}</div>`;
+    }
+    html += R.memories.length ? R.memories.slice().reverse().map(m => {
+      const pl = (TOWN.places.find(p => p.id === m.place) || {}).name || '';
+      return `<div class="diary"><div class="dh"><b>第 ${m.day} 天</b><span>📍 ${esc(pl)}</span>${m.mood ? `<span class="pill">${esc(m.mood)}</span>` : ''}</div>
+        <div class="prose" style="font-size:14px">${esc(m.diary)}</div>
+        ${m.goal ? `<div class="small dim">→ ${esc(m.goal)}</div>` : ''}</div>`;
+    }).join('') : '<div class="empty">还没有日记。</div>';
+  } else if (RES_TAB === 'lore') {
+    html += `<div class="small dim" style="margin-bottom:8px">常驻条目每次都原样带上；关键词条目只在当天的上下文提到关键词时才带上。被排除的多是给酒馆前端用的机关（变量、脚本、状态栏、输出格式）——自动判断会误判，可以逐条手动开关。
+      每次调用固定带上的设定共 <b>${s.profile_chars.toLocaleString()}</b> 字。 <a href="#" onclick="showProfile();return false">看全文</a> ·
+      <a href="#" onclick="resnap();return false">从酒馆重新读取</a></div>`;
+    html += (R.entries || []).map(e => {
+      const state = e.override ? (e.override === 'on' ? '手动开' : '手动关') : e.active ? '' : (e.excluded ? '自动排除：' + e.excluded : '酒馆里已禁用');
+      return `<div class="entry ${e.active ? '' : 'off'}">
+        <span class="pill ${e.constant ? 'acc' : ''}">${e.constant ? '常驻' : '关键词'}</span>
+        <div class="ec"><div><a href="#" onclick="showEntry('${e.uid}');return false">${esc(e.comment || '(无注释)')}</a>
+          <span class="small dim">${e.chars} 字${e.keys.length ? ' · ' + esc(e.keys.slice(0, 4).join('、')) : ''}</span>
+          ${state ? `<span class="small" style="color:var(--yellow)"> ${esc(state)}</span>` : ''}</div>
+          <div class="ep">${esc(e.preview)}</div></div>
+        <select onchange="setOv('${e.uid}',this.value)" title="手动开关">
+          <option value="" ${!e.override ? 'selected' : ''}>自动</option>
+          <option value="on" ${e.override === 'on' ? 'selected' : ''}>开</option>
+          <option value="off" ${e.override === 'off' ? 'selected' : ''}>关</option></select></div>`;
+    }).join('') || '<div class="empty">这张卡没有世界书条目。</div>';
+  } else {
+    html += `<div class="small dim" style="margin-bottom:6px">写在这里的内容会接在此人设定的末尾，优先于原设定。适合补「在小镇里的身体/年龄/外貌」或纠正跑偏的地方。改了从下一次调用起生效。</div>
+      <textarea id="note-ta" rows="8">${esc(R.note || '')}</textarea>
+      <div class="row" style="margin-top:8px"><span id="note-msg" class="msg dim"></span><span class="spacer"></span><button class="sm" onclick="saveNote()">保存</button></div>`;
+  }
+  $('res-body').innerHTML = html;
+}
+async function setOv(uid, v) {
+  const r = await authFetch(`/api/town/residents/${RES.id}/override`, { method: 'POST', body: JSON.stringify({ uid, value: v || null }) }).catch(e => ({ ok: false, _e: e }));
+  if (!r.ok) { alert(r._e ? r._e.message : await errText(r)); return; }
+  openRes(RES.id); loadTown(TOWN.id, true);
+}
+async function saveNote() {
+  const r = await authFetch(`/api/town/residents/${RES.id}/note`, { method: 'PUT', body: JSON.stringify({ note: $('note-ta').value }) }).catch(e => ({ ok: false, _e: e }));
+  $('note-msg').textContent = r.ok ? '已保存' : (r._e ? r._e.message : await errText(r));
+  if (r.ok) RES.note = $('note-ta').value;
+}
+async function showEntry(uid) {
+  const r = await fetch(`/api/town/residents/${RES.id}/entries/${encodeURIComponent(uid)}`);
+  const d = await r.json();
+  showText((RES.entries.find(e => e.uid === uid) || {}).comment || '条目', d.content);
+}
+async function showProfile() {
+  const r = await fetch(`/api/town/residents/${RES.id}/profile`);
+  showText(RES.name + ' · 每次调用带上的设定', (await r.json()).text);
+}
+function showText(title, text) {
+  $('res-body').innerHTML = `<div class="row" style="margin-bottom:8px"><b>${esc(title)}</b><span class="spacer"></span><button class="sm" onclick="paintRes()">返回</button></div>
+    <div class="prose" style="font-size:13px">${esc(text)}</div>`;
+}
+async function resnap() {
+  if (!confirm('从酒馆重新读取此人的角色卡和世界书？手动开关会保留；日记不受影响。')) return;
+  const r = await authFetch(`/api/town/residents/${RES.id}/resnapshot`, { method: 'POST' }).catch(e => ({ ok: false, _e: e }));
+  if (!r.ok) { alert(r._e ? r._e.message : await errText(r)); return; }
+  openRes(RES.id); loadTown(TOWN.id, true);
+}
+function closeMask(id) { $(id).classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.mask.open').forEach(m => m.classList.remove('open')); });
+
+/* ── 建镇 ── */
+let CHOSEN = [];
+async function openCreate() {
+  $('new-mask').classList.add('open');
+  CHOSEN = []; paintChosen(); $('new-results').innerHTML = ''; $('new-q').value = ''; $('new-msg').textContent = '';
+  const r = await fetch('/api/town/personas');
+  const ps = (await r.json()).results || [];
+  // 默认选「张超」里不打折那一份（机主定）；找不到就按字数最多的同名那份
+  const zc = ps.filter(p => p.name === '张超').sort((a, b) => (b.preview.includes('不打折') - a.preview.includes('不打折')) || (b.chars - a.chars))[0];
+  $('new-persona').innerHTML = `<option value="">不加入</option>` + ps.filter(p => p.chars > 20).map(p =>
+    `<option value="${esc(p.file)}" ${zc && p.file === zc.file ? 'selected' : ''}>${esc(p.name)}${p.title ? '（' + esc(p.title) + '）' : ''} · ${p.chars} 字 · ${esc(p.preview.slice(0, 20))}…</option>`).join('');
+  $('new-q').focus();
+}
+let SEARCH_T = null;
+function searchCards() {
+  clearTimeout(SEARCH_T);
+  SEARCH_T = setTimeout(async () => {
+    const q = $('new-q').value.trim();
+    if (!q) { $('new-results').innerHTML = ''; return; }
+    const r = await fetch('/api/town/cards?q=' + encodeURIComponent(q));
+    const hits = (await r.json()).results || [];
+    $('new-results').innerHTML = hits.map(h => `<div class="pc ${CHOSEN.some(c => c.file === h.file) ? 'sel' : ''}" onclick='toggleCard(${JSON.stringify(h).replace(/'/g, "&#39;")})'>
+      <img src="${avatar('card', h.file)}" loading="lazy" alt=""><div>${esc(h.name)}</div></div>`).join('') || '<div class="dim small">没找到</div>';
+  }, 250);
+}
+function toggleCard(h) {
+  const i = CHOSEN.findIndex(c => c.file === h.file);
+  if (i >= 0) CHOSEN.splice(i, 1); else CHOSEN.push(h);
+  paintChosen(); searchCards();
+}
+function paintChosen() {
+  $('new-chosen').innerHTML = CHOSEN.map((c, i) => `<span class="chip"><img src="${avatar('card', c.file)}" alt="">${esc(c.name)}
+    <button onclick="CHOSEN.splice(${i},1);paintChosen();searchCards()">✕</button></span>`).join('') || '<span class="small dim">还没选</span>';
+}
+async function createTown() {
+  const members = CHOSEN.map(c => ({ kind: 'card', file: c.file }));
+  const p = $('new-persona').value;
+  if (p) members.push({ kind: 'persona', file: p });
+  if (!members.length) { $('new-msg').textContent = '至少选一位居民'; return; }
+  $('new-msg').textContent = '正在读取角色卡…';
+  const r = await authFetch('/api/town/towns', { method: 'POST', body: JSON.stringify({ name: $('new-name').value, members }) }).catch(e => ({ ok: false, _e: e }));
+  if (!r.ok) { $('new-msg').textContent = r._e ? r._e.message : await errText(r); return; }
+  const d = await r.json();
+  closeMask('new-mask'); CUR_DAY = null; loadTowns(d.id);
+}
+
+loadTowns();
+</script>
+</body>
+</html>

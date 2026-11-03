@@ -1,0 +1,1 @@
+{"code": 0, "msg": "成功", "data": {"errCode": -70003, "errMsg": "JSAPI_JSONPARSE_FAILED", "data": {"err": {"base_resp": {"error_msg": "type:0, code:0, msg:", "ret": 0}, "err_msg": "H5ExtTransfer:fail", "jsapi_resp": {"error_msg": "resp mmpkg invalid", "resp_json": "", "ret": -104}}}, "payload": {"query": "央视新闻", "scene": 13, "lastBuff": "", "requestId": "1793559854544"}}}

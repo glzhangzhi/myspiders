@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>菜谱</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>">
+<link rel="stylesheet" href="/dashboard/theme.css">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; }
+a { color:var(--blue); text-decoration:none; }
+header { display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 24px; border-bottom:1px solid var(--border); background:var(--surface);
+  position:sticky; top:0; z-index:20; }
+header h1 { font-size:20px; font-weight:600; }
+.header-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+main.page { padding:16px 20px 40px; }
+
+.btn { padding:5px 14px; border-radius:6px; font-size:12px; cursor:pointer;
+  border:1px solid var(--border); background:transparent; color:var(--text-dim);
+  transition:all .15s; white-space:nowrap; }
+.btn:hover { color:var(--text); border-color:var(--text-dim); }
+.btn:disabled { opacity:.3; cursor:not-allowed; }
+.btn-sm { padding:3px 10px; font-size:11px; }
+.btn-primary { background:var(--blue); color:#fff; border-color:var(--blue); }
+.btn-primary:hover { opacity:.9; }
+.btn-danger { color:var(--red); border-color:var(--red); }
+.btn-danger:hover { background:var(--red); color:#fff; }
+.btn-success { background:var(--green); color:#fff; border-color:var(--green); }
+.btn-ghost { border-color:transparent; }
+
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; margin-bottom:12px; }
+.panel h3 { font-size:14px; font-weight:600; margin-bottom:10px; display:flex;
+  align-items:center; gap:6px; }
+.panel-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+
+input[type=text], input[type=number], textarea, select {
+  background:var(--bg); border:1px solid var(--border); color:var(--text);
+  border-radius:6px; padding:6px 10px; font-size:13px; font-family:inherit; outline:none; }
+input:focus, textarea:focus, select:focus { border-color:var(--blue); }
+textarea { width:100%; resize:vertical; line-height:1.6; }
+label.inline { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-dim); cursor:pointer; }
+
+/* ── 布局：左筛选 + 右列表 ── */
+.layout { display:grid; grid-template-columns:230px 1fr 300px; gap:14px; align-items:start; }
+@media (max-width:1200px) { .layout { grid-template-columns:200px 1fr; } .plan-col { grid-column:1/-1; } }
+@media (max-width:760px) { .layout { grid-template-columns:1fr; } }
+
+.side { position:sticky; top:70px; max-height:calc(100vh - 90px); overflow-y:auto; }
+.side::-webkit-scrollbar, .plan-col::-webkit-scrollbar { width:6px; }
+.side::-webkit-scrollbar-thumb, .plan-col::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+.tag-group { margin-bottom:14px; }
+.tag-group-title { font-size:11px; color:var(--text-dim); text-transform:uppercase;
+  letter-spacing:.5px; margin-bottom:6px; display:flex; justify-content:space-between; }
+.chips { display:flex; flex-wrap:wrap; gap:5px; }
+.chip { padding:3px 9px; border-radius:12px; font-size:11px; cursor:pointer;
+  border:1px solid var(--border); background:var(--bg); color:var(--text-dim);
+  transition:all .12s; user-select:none; }
+.chip:hover { border-color:var(--text-dim); color:var(--text); }
+.chip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+.chip.dim { opacity:.35; }
+.chip .cnt { opacity:.6; margin-left:3px; font-size:10px; }
+
+/* ── 菜谱卡片 ── */
+.recipe-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+.rcard { background:var(--surface); border:1px solid var(--border); border-radius:9px;
+  padding:11px 13px; cursor:pointer; transition:all .15s; position:relative; }
+.rcard:hover { border-color:var(--blue); transform:translateY(-1px); }
+.rcard.picked { border-color:var(--green); background:var(--green-bg); }
+.rcard-title { font-size:14px; font-weight:600; margin-bottom:5px; padding-right:22px;
+  display:flex; align-items:center; gap:5px; }
+.rcard-meta { font-size:11px; color:var(--text-dim); margin-bottom:7px; display:flex;
+  gap:8px; flex-wrap:wrap; }
+.rcard-tags { display:flex; flex-wrap:wrap; gap:4px; }
+.minitag { font-size:10px; padding:1px 6px; border-radius:8px; background:var(--surface2);
+  color:var(--text-dim); border:1px solid var(--border); }
+.minitag.m { color:var(--blue); border-color:rgba(88,166,255,.3); }
+.minitag.f { color:var(--yellow); border-color:rgba(210,153,34,.3); }
+.minitag.i { color:var(--green); border-color:rgba(63,185,80,.3); }
+.rcard-fav { position:absolute; top:9px; right:10px; font-size:13px; opacity:.5; }
+.rcard-fav.on { opacity:1; }
+/* 「我的」= 自己录入 / AI 转换的，区别于批量导入的公开菜谱库 */
+.badge-mine { font-size:9px; padding:1px 5px; border-radius:6px; background:var(--accent-bg);
+  color:var(--accent); border:1px solid var(--accent); }
+.badge-pushed { font-size:10px; color:var(--text-dim); }
+.badge-warn { font-size:9px; padding:1px 5px; border-radius:6px; background:rgba(210,153,34,.15);
+  color:var(--yellow); border:1px solid rgba(210,153,34,.3); }
+
+/* ── 排餐栏 ── */
+.plan-col { position:sticky; top:70px; max-height:calc(100vh - 90px); overflow-y:auto; }
+.plan-item { display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:6px;
+  background:var(--bg); border:1px solid var(--border); margin-bottom:5px; font-size:12px; }
+.plan-item .grab { cursor:grab; color:var(--grey); font-size:13px; }
+/* 菜名可点开菜谱详情；删除按钮是行内另一个热区，故只让菜名带手型 */
+.plan-item .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.plan-item .name:hover { color:var(--blue); text-decoration:underline; }
+.plan-item.dragging { opacity:.4; }
+
+/* ── 配料汇总（采买清单）── */
+/* 右栏只有 300px，标题 + 计数 + 两个按钮容易被挤到第二行 */
+#shop-panel h3 { white-space:nowrap; }
+/* 图标按钮：btn-ghost 无边框 + 暗色，在标题行里几乎看不见，
+   给个淡边框和正常字色，让它看起来是能点的 */
+#shop-panel h3 .btn { padding:2px 8px; font-size:13px; line-height:1.4;
+  border-color:var(--border); color:var(--text-dim); }
+#shop-panel h3 .btn:hover { color:var(--blue); border-color:var(--blue); }
+
+.shop-group { margin-bottom:10px; }
+.shop-group-title { font-size:11px; color:var(--text-dim); margin-bottom:4px;
+  display:flex; justify-content:space-between; align-items:center; }
+.shop-item { display:flex; align-items:baseline; gap:6px; padding:3px 0; font-size:12px;
+  border-bottom:1px dashed var(--border); cursor:pointer; user-select:none; }
+.shop-item:last-child { border-bottom:none; }
+.shop-item .tick { color:var(--grey); font-size:11px; width:12px; flex:none; }
+.shop-item .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.shop-item .amt { color:var(--blue); font-size:11px; white-space:nowrap; }
+/* 买过的划掉但**不移除**：站在货架前要能看出"这个我已经拿了"，
+   而不是让它消失、回头怀疑自己漏了一样 */
+.shop-item.got { opacity:.4; }
+.shop-item.got .nm { text-decoration:line-through; }
+.shop-item.got .tick { color:var(--green); }
+/* 用量存疑（配料写「适量」，或用量是依赖份数的公式）—— 标出来而不是假装精确 */
+.shop-item .warn { color:var(--yellow); font-size:10px; }
+.shop-item .opt { color:var(--text-dim); font-size:10px; }
+.shop-sub { font-size:10px; color:var(--text-dim); margin-top:1px; }
+/* 厨具区默认收起：它不用买，但第一次做某道菜时要能查"家里有没有烤箱" */
+.shop-tools { opacity:.65; }
+
+/* ── 弹窗 ── */
+.modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:1000;
+  display:flex; align-items:center; justify-content:center; padding:20px; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  width:100%; max-width:720px; max-height:88vh; overflow-y:auto; padding:20px; }
+.modal h2 { font-size:17px; margin-bottom:4px; }
+.modal-sub { font-size:12px; color:var(--text-dim); margin-bottom:14px; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px;
+  position:sticky; bottom:-20px; background:var(--surface); padding:12px 0 0; }
+/* 二次确认层：盖在弹窗之上，弹窗 DOM 原样保留，取消即回到原编辑状态 */
+.confirm-mask { z-index:1100; background:rgba(0,0,0,.55); }
+.confirm-box { max-width:380px; }
+.confirm-box .modal-actions { position:static; }
+.field { margin-bottom:11px; }
+.field label { display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px; }
+.field input[type=text], .field input[type=number] { width:100%; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+.step-line, .ing-line { display:flex; gap:6px; margin-bottom:5px; align-items:flex-start; }
+.step-line .idx { color:var(--text-dim); font-size:12px; padding-top:7px; min-width:20px; }
+.ing-line input:nth-child(1) { flex:2; } .ing-line input:nth-child(2) { flex:1; }
+.ing-line input:nth-child(3) { flex:1.5; }
+.step-line textarea { flex:1; min-height:38px; }
+
+pre.preview { background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:14px; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12px;
+  line-height:1.65; white-space:pre-wrap; max-height:52vh; overflow-y:auto; color:var(--text); }
+
+.toast { position:fixed; bottom:24px; right:24px; padding:9px 18px; border-radius:8px;
+  background:var(--surface); border:1px solid var(--border); font-size:13px; z-index:2000;
+  opacity:0; transform:translateY(10px); transition:all .25s; pointer-events:none; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.error { border-color:var(--red); color:var(--red); }
+.toast.success { border-color:var(--green); color:var(--green); }
+
+.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:50px 20px; color:var(--text-dim); font-size:13px; }
+.empty-state .icon { font-size:30px; margin-bottom:8px; opacity:.4; }
+.dot { width:7px; height:7px; border-radius:50%; display:inline-block; background:var(--grey); }
+.dot.on { background:var(--green); } .dot.off { background:var(--red); }
+.spin { display:inline-block; width:11px; height:11px; border:2px solid var(--border);
+  border-top-color:var(--blue); border-radius:50%; animation:sp .7s linear infinite; }
+@keyframes sp { to { transform:rotate(360deg); } }
+.detail-sec { margin-bottom:14px; }
+.detail-sec h4 { font-size:13px; margin-bottom:7px; color:var(--blue); }
+.detail-ing { display:flex; justify-content:space-between; padding:4px 0;
+  border-bottom:1px dashed var(--border); font-size:13px; }
+.detail-ing .note { color:var(--text-dim); font-size:11px; }
+.detail-step { display:flex; gap:9px; margin-bottom:8px; font-size:13px; line-height:1.6; }
+.detail-step .n { color:var(--blue); font-weight:600; min-width:20px; }
+</style>
+<!-- dsh-embed-chrome: 被 index.html 的 iframe 内嵌时去掉自己的标题 ——
+     外层侧边栏已经写着「我在哪」，再来一行 h1 是第二条标题栏，白占竖向空间。
+     判据用 self!==top 而不是写死：这些页面单独打开仍是可用的完整页面，那时标题必须留着。
+     放 <head> 内联脚本里，在首次绘制前就打上 class，避免标题闪一下再消失。 -->
+<script>try{if(window.self!==window.top)document.documentElement.classList.add('embedded');}catch(e){document.documentElement.classList.add('embedded');}</script>
+<style>
+html.embedded header h1 { display: none; }
+/* h1 一藏，space-between 只剩一个子元素，按钮会整排甩到左边。 */
+html.embedded header { justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🍳 菜谱</h1>
+  <div class="header-right">
+    <span id="kindle-status" style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:5px;">
+      <span class="dot" id="k-dot"></span><span id="k-text">Kindle 未检测</span>
+    </span>
+    <button class="btn btn-sm" onclick="checkKindle(true)">检测</button>
+    <button class="btn btn-sm" onclick="openConvert()">🤖 AI 转换</button>
+    <button class="btn btn-sm" onclick="openEditor()">✚ 手动添加</button>
+    <button class="btn btn-sm" onclick="openImport()">📥 导入菜谱库</button>
+  </div>
+</header>
+
+<main class="page">
+  <div class="layout">
+
+    <!-- ── 左：筛选 ── -->
+    <div class="side">
+      <div class="panel">
+        <div class="panel-row" style="margin-bottom:10px;">
+          <input type="text" id="q" placeholder="搜菜名 / 配料…" style="flex:1;min-width:0;"
+                 oninput="debouncedSearch()">
+        </div>
+        <div class="panel-row" style="gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+          <label class="inline"><input type="checkbox" id="mine-only" onchange="reload()"> 只看我的<span id="mine-cnt" style="opacity:.6;font-size:10px"></span></label>
+          <label class="inline"><input type="checkbox" id="fav-only" onchange="reload()"> 只看收藏</label>
+          <button class="btn btn-sm btn-ghost" onclick="clearFilters()">清空</button>
+        </div>
+        <div class="panel-row" style="margin-bottom:12px;">
+          <button class="btn btn-sm" style="width:100%" onclick="openTagManager()">🏷️ 管理标签</button>
+        </div>
+        <div id="filter-groups"></div>
+      </div>
+    </div>
+
+    <!-- ── 中：菜谱列表 ── -->
+    <div>
+      <div class="panel" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:13px;">
+          <span id="count-text" style="color:var(--text-dim)">加载中…</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select id="sort-by" onchange="reload()" style="font-size:11px;padding:3px 8px;">
+            <option value="created_at">最近添加</option>
+            <option value="title">按菜名</option>
+            <option value="last_pushed_at">最近推送</option>
+            <option value="total_minutes">耗时</option>
+          </select>
+          <button class="btn btn-sm" onclick="rollDice()">🎲 随机</button>
+        </div>
+      </div>
+      <div id="recipe-list" class="recipe-grid"></div>
+      <div id="load-more-wrap" style="text-align:center;margin-top:14px;display:none;">
+        <button class="btn" onclick="loadMore()">加载更多</button>
+      </div>
+    </div>
+
+    <!-- ── 右：推送列表 ── -->
+    <div class="plan-col">
+      <div class="panel">
+        <h3>
+          📤 推送列表
+          <span id="menu-count" style="font-weight:400;color:var(--text-dim);font-size:12px;"></span>
+          <span style="flex:1"></span>
+          <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="clearMenu()">清空</button>
+        </h3>
+        <div id="plan-list" style="margin:10px 0;"></div>
+        <input type="text" id="plan-note" placeholder="备注（可选）" style="width:100%;margin-bottom:8px;"
+               oninput="menuDirty()">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-sm" onclick="previewPush()">预览</button>
+          <button class="btn btn-sm btn-success" onclick="pushToKindle()">📤 推送 Kindle</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.5;">
+          每道菜一个文件、以菜名命名，会覆盖 Kindle 上同名的旧版
+        </div>
+        <div id="plan-meta" style="font-size:11px;color:var(--text-dim);margin-top:8px;"></div>
+      </div>
+
+      <!-- ── 配料汇总（采买清单）── -->
+      <div class="panel" id="shop-panel" style="display:none;">
+        <h3>
+          🛒 配料汇总
+          <span id="shop-count" style="font-weight:400;color:var(--text-dim);font-size:12px;"></span>
+          <span style="flex:1"></span>
+          <button class="btn btn-sm btn-ghost" onclick="regenShopping()" title="按推送列表重新汇总，并清空所有勾选">↻</button>
+          <button class="btn btn-sm btn-ghost" onclick="copyShopping()" title="复制成文本清单">⧉</button>
+        </h3>
+        <div id="shop-body"></div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.5;">
+          点一行标记已买 · <span style="color:var(--yellow)">⚠</span> 表示用量需现场判断
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<div id="modal-root"></div>
+<div id="confirm-root"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/legacy/common.js?v=2"></script>
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const TOKEN = () => localStorage.getItem('myspiders-token') || '';
+const sel = { method: new Set(), flavor: new Set(), ingredient: new Set(), custom: new Set(), category: '' };
+let VOCAB = { method: [], flavor: [], ingredient: [] };
+let FACETS = {};
+let items = [], total = 0, skip = 0;
+const PAGE = 60;
+let planSlugs = [];      // 当前排餐的 slug 列表（有序）
+let searchTimer = null;
+
+function hdr(auth) {
+  const h = { 'Content-Type': 'application/json' };
+  if (auth) h['x-token'] = TOKEN();
+  return h;
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+// 后端 400/401/502 统一返回 {detail: "..."}；把它变成可读的 toast
+async function api(path, opts = {}) {
+  const r = await fetch('/api/recipes' + path, opts);
+  const text = await r.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = { detail: text }; }
+  if (!r.ok) throw new Error((data && data.detail) || ('HTTP ' + r.status));
+  return data;
+}
+
+// ═══════════════════════════════════════════
+// 筛选器
+// ═══════════════════════════════════════════
+function qs() {
+  const p = new URLSearchParams();
+  if (sel.method.size) p.set('methods', [...sel.method].join(','));
+  if (sel.flavor.size) p.set('flavors', [...sel.flavor].join(','));
+  if (sel.ingredient.size) p.set('ingredients', [...sel.ingredient].join(','));
+  if (sel.custom.size) p.set('custom', [...sel.custom].join(','));
+  if (sel.category) p.set('category', sel.category);
+  const q = document.getElementById('q').value.trim();
+  if (q) p.set('search', q);
+  if (document.getElementById('fav-only').checked) p.set('favorite', 'true');
+  if (document.getElementById('mine-only').checked) p.set('mine', 'true');
+  return p;
+}
+
+const GROUP_META = {
+  method: { label: '做法', key: 'method' },
+  flavor: { label: '口味', key: 'flavor' },
+  ingredient: { label: '主材', key: 'ingredient' },
+  category: { label: '分类', key: 'category' },
+  custom: { label: '自定义', key: 'custom' },
+};
+
+function renderFilters() {
+  const box = document.getElementById('filter-groups');
+  let html = '';
+
+  for (const g of ['method', 'flavor', 'ingredient']) {
+    const counts = FACETS[g] || {};
+    // 词表给出全集，facet 只给当前筛选下的计数 —— 计数为 0 的标签保留但置灰，
+    // 让用户看到"这个组合下没有这类菜"，而不是标签凭空消失。
+    const tags = VOCAB[g] || [];
+    html += `<div class="tag-group"><div class="tag-group-title"><span>${GROUP_META[g].label}</span></div><div class="chips">`;
+    for (const t of tags) {
+      const n = counts[t] || 0;
+      const on = sel[g].has(t);
+      html += `<span class="chip ${on ? 'active' : ''} ${n === 0 && !on ? 'dim' : ''}" onclick="toggleTag('${g}','${esc(t)}')">${esc(t)}${n ? `<span class="cnt">${n}</span>` : ''}</span>`;
+    }
+    html += '</div></div>';
+  }
+
+  // 分类是单选（一道菜只属于一个源分类）
+  const cats = FACETS.category || {};
+  const catKeys = Object.keys(cats).sort((a, b) => cats[b] - cats[a]);
+  if (catKeys.length) {
+    html += '<div class="tag-group"><div class="tag-group-title"><span>分类</span></div><div class="chips">';
+    for (const c of catKeys) {
+      const on = sel.category === c;
+      html += `<span class="chip ${on ? 'active' : ''}" onclick="pickCategory('${esc(c)}')">${esc(c)}<span class="cnt">${cats[c]}</span></span>`;
+    }
+    html += '</div></div>';
+  }
+
+  const customs = FACETS.custom || {};
+  const cusKeys = Object.keys(customs).sort((a, b) => customs[b] - customs[a]);
+  if (cusKeys.length) {
+    html += '<div class="tag-group"><div class="tag-group-title"><span>自定义</span></div><div class="chips">';
+    for (const t of cusKeys) {
+      const on = sel.custom.has(t);
+      html += `<span class="chip ${on ? 'active' : ''}" onclick="toggleTag('custom','${esc(t)}')">${esc(t)}<span class="cnt">${customs[t]}</span></span>`;
+    }
+    html += '</div></div>';
+  }
+
+  box.innerHTML = html;
+  document.getElementById('mine-cnt').textContent = FACETS.mine != null ? ' ' + FACETS.mine : '';
+}
+
+function toggleTag(group, tag) {
+  sel[group].has(tag) ? sel[group].delete(tag) : sel[group].add(tag);
+  reload();
+}
+function pickCategory(c) { sel.category = (sel.category === c ? '' : c); reload(); }
+function clearFilters() {
+  for (const g of ['method', 'flavor', 'ingredient', 'custom']) sel[g].clear();
+  sel.category = '';
+  document.getElementById('q').value = '';
+  document.getElementById('fav-only').checked = false;
+  document.getElementById('mine-only').checked = false;
+  reload();
+}
+function debouncedSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(reload, 300);
+}
+
+// ═══════════════════════════════════════════
+// 列表
+// ═══════════════════════════════════════════
+// 与后端 repositories/recipes.py 的 IMPORTED_SOURCES 同一口径：
+// 不是从公开菜谱库批量导入的，就是「我的」（手动录入 / AI 转换）
+const IMPORTED_SOURCES = ['howtocook', 'cooklikehoc'];
+function isMine(r) { return !IMPORTED_SOURCES.includes(r.source || ''); }
+function fmtTime(t) {
+  if (!t) return '';
+  // 后端存 UTC，序列化时可能不带时区后缀；没有就按 UTC 解释
+  const s = /[zZ]|[+-]\d\d:?\d\d$/.test(t) ? t : t + 'Z';
+  return new Date(s).toLocaleString('zh-CN', { timeZone: 'Europe/Berlin', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function cardHtml(r) {
+  const picked = planSlugs.includes(r.slug);
+  const mins = r.total_minutes ? `⏱ ${r.total_minutes}分` : '';
+  const pushed = r.last_pushed_at ? '<span class="badge-pushed" title="上次推送 ' + esc(fmtTime(r.last_pushed_at)) + '">📤 已推送</span>' : '';
+  const mine = isMine(r) ? '<span class="badge-mine" title="自己录入 / AI 转换的菜谱">我的</span>' : '';
+  const warn = (!r.steps || !r.steps.length) ? '<span class="badge-warn">缺步骤</span>' : '';
+  const tags = [
+    ...(r.method_tags || []).map(t => `<span class="minitag m">${esc(t)}</span>`),
+    ...(r.flavor_tags || []).map(t => `<span class="minitag f">${esc(t)}</span>`),
+    ...(r.ingredient_tags || []).slice(0, 3).map(t => `<span class="minitag i">${esc(t)}</span>`),
+    ...(r.custom_tags || []).map(t => `<span class="minitag">${esc(t)}</span>`),
+  ].join('');
+  return `<div class="rcard ${picked ? 'picked' : ''}" onclick="openDetail('${esc(r.slug)}')">
+    <div class="rcard-fav ${r.favorite ? 'on' : ''}">${r.favorite ? '⭐' : ''}</div>
+    <div class="rcard-title">${esc(r.title)} ${mine} ${warn}</div>
+    <div class="rcard-meta">
+      <span>${esc(r.category || '—')}</span>${mins ? '<span>' + mins + '</span>' : ''}${pushed}
+    </div>
+    <div class="rcard-tags">${tags}</div>
+    <div style="margin-top:8px;display:flex;gap:5px;" onclick="event.stopPropagation()">
+      <button class="btn btn-sm ${picked ? 'btn-success' : ''}" onclick="togglePlan('${esc(r.slug)}')">${picked ? '✓ 待推送' : '+ 推送列表'}</button>
+    </div>
+  </div>`;
+}
+
+async function reload() {
+  skip = 0;
+  await Promise.all([loadList(true), loadFacets()]);
+}
+
+async function loadList(reset) {
+  try {
+    const p = qs();
+    p.set('skip', reset ? 0 : skip);
+    p.set('limit', PAGE);
+    p.set('sort_by', document.getElementById('sort-by').value);
+    const d = await api('/list?' + p.toString());
+    items = reset ? d.items : items.concat(d.items);
+    total = d.total;
+    skip = items.length;
+    renderList();
+  } catch (e) { showToast('加载失败: ' + e.message, 'error'); }
+}
+
+function renderList() {
+  const box = document.getElementById('recipe-list');
+  if (!items.length) {
+    box.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🍽️</div><div>没有匹配的菜谱</div><div style="font-size:11px;margin-top:6px">试试清空筛选，或点右上角「导入菜谱库」</div></div>';
+  } else {
+    box.innerHTML = items.map(cardHtml).join('');
+  }
+  document.getElementById('count-text').textContent = `共 ${total} 道 · 已显示 ${items.length}`;
+  document.getElementById('load-more-wrap').style.display = items.length < total ? 'block' : 'none';
+}
+
+function loadMore() { loadList(false); }
+
+async function loadFacets() {
+  try { FACETS = await api('/facets?' + qs().toString()); renderFilters(); }
+  catch (e) { /* facets 失败不该挡住主列表 */ }
+}
+
+async function rollDice() {
+  try {
+    const p = qs(); p.set('n', 3);
+    const d = await api('/random?' + p.toString());
+    if (!d.items.length) return showToast('当前筛选下没有菜', 'error');
+    d.items.forEach(r => { if (!planSlugs.includes(r.slug)) planSlugs.push(r.slug); });
+    renderPlan(); renderList(); menuDirty();
+    showToast('随机加入推送列表：' + d.items.map(r => r.title).join('、'), 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════
+// 推送列表（无日期、自动保存；库里/接口里仍叫 menu）
+// ═══════════════════════════════════════════
+// 原先按日期存 + 手动「保存」按钮，导致刷新页面后选择被服务器上那份旧计划
+// 覆盖掉。现在只有一份菜单，任何改动都自动落库，刷新拿到的就是最后状态。
+
+let saveTimer = null;
+
+function menuDirty() {
+  // 防抖自动保存：拖拽排序、连点加入时不至于每次都打一趟后端
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveMenu, 500);
+}
+
+async function saveMenu(silent) {
+  try {
+    await api('/menu', {
+      method: 'POST', headers: hdr(true),
+      body: JSON.stringify({
+        slugs: planSlugs,
+        note: document.getElementById('plan-note').value,
+      }),
+    });
+    if (!silent) setMenuMeta('已保存');
+    loadShopping();
+  } catch (e) { showToast('保存推送列表失败: ' + e.message, 'error'); }
+}
+
+function setMenuMeta(extra) {
+  const meta = document.getElementById('plan-meta');
+  const bits = [];
+  if (menuPushedAt) {
+    bits.push('上次推送 ' + fmtTime(menuPushedAt));
+  }
+  if (menuMissing.length) bits.push('⚠️ ' + menuMissing.length + ' 道菜已被删除');
+  if (extra) bits.push(extra);
+  meta.textContent = bits.join(' · ');
+}
+
+let menuPushedAt = null;
+let menuMissing = [];
+let menuTitles = {};      // slug -> title，让菜单项在筛选结果外也能显示真名
+
+async function loadMenu() {
+  try {
+    const d = await api('/menu');
+    planSlugs = d.slugs || [];
+    menuPushedAt = d.pushed_at || null;
+    menuMissing = d.missing_slugs || [];
+    (d.recipes || []).forEach(r => { menuTitles[r.slug] = r.title; });
+    document.getElementById('plan-note').value = d.note || '';
+    setMenuMeta();
+    renderPlan(); renderList(); loadShopping();
+  } catch (e) { showToast('读取推送列表失败: ' + e.message, 'error'); }
+}
+
+function titleOf(slug) {
+  const inList = items.find(r => r.slug === slug);
+  if (inList) return inList.title;
+  if (menuTitles[slug]) return menuTitles[slug];
+  // 兜底：slug 形如 "来源:标题"，取标题部分
+  const idx = slug.indexOf(':');
+  return idx >= 0 ? slug.slice(idx + 1) : slug;
+}
+
+function renderPlan() {
+  const box = document.getElementById('plan-list');
+  document.getElementById('menu-count').textContent = planSlugs.length ? '· ' + planSlugs.length + ' 道' : '';
+  if (!planSlugs.length) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">还没选菜 —— 点菜谱卡片上的「+ 推送列表」</div>';
+    return;
+  }
+  box.innerHTML = planSlugs.map((s, i) => `
+    <div class="plan-item" draggable="true" data-idx="${i}"
+         ondragstart="dragStart(event,${i})" ondragover="dragOver(event)" ondrop="dragDrop(event,${i})"
+         ondragend="dragEnd(event)">
+      <span class="grab">⋮⋮</span>
+      <span class="name" onclick="openPlanDetail(${i})" title="点击查看菜谱：${esc(titleOf(s))}">${i + 1}. ${esc(titleOf(s))}</span>
+      <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="togglePlan('${esc(s)}')">✕</button>
+    </div>`).join('');
+}
+
+// 按**下标**取 slug 而不是把 slug 拼进 onclick 字符串：esc() 只转义 & < >，
+// 不转义单引号，菜名里带 ' 就会把 onclick 的字符串提前闭合（同理见配料汇总的 toggleGot）。
+function openPlanDetail(i) {
+  const slug = planSlugs[i];
+  if (slug) openDetail(slug);
+}
+
+function togglePlan(slug) {
+  const i = planSlugs.indexOf(slug);
+  if (i >= 0) planSlugs.splice(i, 1); else planSlugs.push(slug);
+  renderPlan(); renderList(); menuDirty();
+}
+
+function clearMenu() {
+  if (!planSlugs.length) return;
+  if (!confirm('清空推送列表？（Kindle 上已推送的文件不受影响）')) return;
+  planSlugs = [];
+  document.getElementById('plan-note').value = '';
+  renderPlan(); renderList(); menuDirty();
+  loadShopping();            // 立刻收起汇总面板，不等防抖保存那 500ms
+}
+
+let dragIdx = null;
+function dragStart(e, i) { dragIdx = i; e.currentTarget.classList.add('dragging'); }
+function dragOver(e) { e.preventDefault(); }
+function dragEnd(e) { e.currentTarget.classList.remove('dragging'); }
+function dragDrop(e, i) {
+  e.preventDefault();
+  if (dragIdx === null || dragIdx === i) return;
+  const [moved] = planSlugs.splice(dragIdx, 1);
+  planSlugs.splice(i, 0, moved);
+  dragIdx = null;
+  renderPlan(); menuDirty();
+}
+
+// ═══════════════════════════════════════════
+// 配料汇总（采买清单）
+// ═══════════════════════════════════════════
+// 后端算汇总（同名合并 / 同单位求和 / 分区），前端只负责画 + 记"已买"。
+// 解析规则必须能被测试盯住，所以不放在这里 —— 见 services/recipe_shopping.py。
+
+let shopData = null;
+let shopFlat = [];        // 渲染顺序的扁平列表，onclick 用下标定位（免去名字转义）
+
+// "已买"勾选存 localStorage 而不是后端：它是**一次采买的临时状态**，
+// 不是菜单的一部分。存库的话换台设备看菜单会莫名其妙带着上次的勾选。
+//
+// 勾选必须**绑定到当时那份菜单**：换一桌菜再来采买，上一趟买过的「盐」
+// 若还划着，人会直接跳过它 —— 站到灶台前才发现没盐。故连同菜单指纹一起存，
+// 指纹对不上就从头开始。
+const SHOP_KEY = 'myspiders-shop-got';
+
+function shopSig() { return [...planSlugs].sort().join('|'); }
+
+function shopStore() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SHOP_KEY) || 'null');
+    if (d && typeof d === 'object' && Array.isArray(d.got)) return d;
+  } catch (e) { /* 存的东西坏了就当没存过 */ }
+  return { sig: '', got: [] };
+}
+
+function shopGot() {
+  const d = shopStore();
+  if (d.sig === shopSig()) return new Set(d.got);
+
+  // 菜单**动过但还沾边**（采买途中加一道、去一道）仍是同一趟采买，勾选要留着；
+  // 只有换成完全不相干的一桌菜才从头开始。
+  // 用"是否还有交集"判断而不是"只增不减"：删掉一道菜就把整单勾选清空，
+  // 等于逼人重走一遍货架。
+  const prev = new Set((d.sig || '').split('|').filter(Boolean));
+  const overlaps = [...prev].some(s => planSlugs.includes(s));
+  return overlaps ? new Set(d.got) : new Set();
+}
+
+function setShopGot(set) {
+  localStorage.setItem(SHOP_KEY, JSON.stringify({ sig: shopSig(), got: [...set] }));
+}
+
+// 连点「加入」会并发打出多个汇总请求，响应回来的顺序不保证与发出顺序一致 ——
+// 慢的那个后到就会用旧菜单的汇总盖掉新的。只认最后一次请求的结果。
+let shopSeq = 0;
+
+async function loadShopping() {
+  const panel = document.getElementById('shop-panel');
+  // 先占号再判空：清空菜单时也必须让在途请求作废，否则它晚一步回来、
+  // 照着旧菜单把面板又画出来。
+  const seq = ++shopSeq;
+  if (!planSlugs.length) { panel.style.display = 'none'; shopData = null; return; }
+  try {
+    const d = await api('/menu/shopping');
+    if (seq !== shopSeq) return;
+    shopData = d;
+    renderShopping();
+  } catch (e) {
+    // 汇总挂了不该影响菜单本身的使用
+    if (seq === shopSeq) panel.style.display = 'none';
+  }
+}
+
+function renderShopping() {
+  const panel = document.getElementById('shop-panel');
+  const box = document.getElementById('shop-body');
+  if (!shopData || !shopData.total) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const got = shopGot();
+  shopFlat = [];
+  let html = '';
+  let boughtCount = 0;
+  let buyable = 0;
+
+  for (const g of shopData.groups) {
+    const isTool = g.key === 'tool';
+    html += `<div class="shop-group ${isTool ? 'shop-tools' : ''}">
+      <div class="shop-group-title"><span>${esc(g.label)}</span><span>${g.items.length}</span></div>`;
+    for (const it of g.items) {
+      const idx = shopFlat.length;
+      shopFlat.push(it);
+      // 厨具不参与"已买"统计 —— 它本来就不用买，算进去会让进度永远差几样
+      const on = got.has(it.name);
+      if (!isTool) { buyable++; if (on) boughtCount++; }
+      const sub = [];
+      if (it.note) sub.push(esc(it.note));
+      if (it.dishes.length > 1) sub.push(esc(it.dishes.join(' · ')));
+      html += `<div class="shop-item ${on ? 'got' : ''}" onclick="toggleGot(${idx})" title="${esc(it.dishes.join('、'))}">
+        <span class="tick">${on ? '✓' : '○'}</span>
+        <span class="nm">${esc(it.name)}${it.optional ? '<span class="opt"> 可选</span>' : ''}${sub.length ? `<div class="shop-sub">${sub.join(' — ')}</div>` : ''}</span>
+        ${it.amount ? `<span class="amt">${esc(it.amount)}</span>` : ''}
+        ${it.uncertain ? '<span class="warn" title="用量需现场判断">⚠</span>' : ''}
+      </div>`;
+    }
+    html += '</div>';
+  }
+  box.innerHTML = html;
+
+  // 勾选状态可能刚被菜单变更重置过，落盘一次让它与当前菜单指纹对齐
+  setShopGot(got);
+
+  document.getElementById('shop-count').textContent =
+    `· ${buyable} 样` + (boughtCount ? ` · 已买 ${boughtCount}` : '');
+}
+
+function toggleGot(idx) {
+  const item = shopFlat[idx];
+  if (!item) return;
+  const got = shopGot();
+  got.has(item.name) ? got.delete(item.name) : got.add(item.name);
+  setShopGot(got);
+  renderShopping();
+}
+
+// 重新生成：按当前菜单重新拉一次汇总，并把"已买"勾选全部清掉。
+// 勾选是跟着菜单指纹自动续用的（加菜/减菜不清空），所以需要一个显式出口 ——
+// 同一份菜单买第二趟时，得能从头开始。
+async function regenShopping() {
+  if (!planSlugs.length) return showToast('推送列表是空的', 'error');
+  // 先落库再拉：防抖保存可能还没跑，后端是按库里的菜单算的
+  await saveMenu(true);
+  localStorage.removeItem(SHOP_KEY);
+  await loadShopping();
+  showToast('已重新汇总，勾选已清空', 'success');
+}
+
+// 复制成纯文本：手机上照着买最方便，不用一直开着这个页面
+function shoppingText() {
+  if (!shopData) return '';
+  const got = shopGot();
+  const lines = [`采买清单（${shopData.dishes} 道菜）`, ''];
+  for (const g of shopData.groups) {
+    if (g.key === 'tool') continue;       // 厨具不用买，不进清单
+    lines.push(g.label);
+    for (const it of g.items) {
+      const bits = [it.name];
+      if (it.amount) bits.push(it.amount);
+      if (it.uncertain) bits.push('(酌量)');
+      if (it.optional) bits.push('(可选)');
+      // 已勾选的照样列出来、只是打上勾：清单要能对得上货架上拿了什么
+      lines.push((got.has(it.name) ? '  ☑ ' : '  □ ') + bits.join('  '));
+    }
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+async function copyShopping() {
+  const text = shoppingText();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('已复制采买清单', 'success');
+  } catch (e) {
+    // 非 HTTPS / 旧浏览器没有 clipboard API，退回让用户自己选中复制
+    showModal(`<h2>🛒 采买清单</h2><pre class="preview">${esc(text)}</pre>
+      <div class="modal-actions"><button class="btn" onclick="closeModal()">关闭</button></div>`);
+  }
+}
+
+// ═══════════════════════════════════════════
+// Kindle
+// ═══════════════════════════════════════════
+async function checkKindle(refresh = false) {
+  const dot = document.getElementById('k-dot'), txt = document.getElementById('k-text');
+  txt.textContent = '检测中…'; dot.className = 'dot';
+  try {
+    const d = await api('/kindle/status' + (refresh ? '?refresh=true' : ''));
+    if (d.online) {
+      dot.className = 'dot on';
+      // 目录不存在不是错误：push_text 自带 mkdir -p，首次推送时会建出来
+      txt.textContent = 'Kindle 在线' + (d.dir_exists ? '' : '（推送时自动建目录）');
+      txt.title = d.path || '';
+    } else {
+      dot.className = 'dot off';
+      txt.textContent = d.error || '离线';
+    }
+  } catch (e) { dot.className = 'dot off'; txt.textContent = e.message; }
+}
+
+async function previewPush() {
+  if (!planSlugs.length) return showToast('推送列表是空的', 'error');
+  try {
+    await saveMenu(true);       // 预览按库里的列表渲染，先把防抖中的改动落库
+    const d = await api('/kindle/preview');
+    const files = d.files || [];
+    // 每道菜一个文件：用折叠块逐个列出，文件名就是 Kindle 上会看到的名字
+    const body = files.map((f, i) => `
+      <details ${i === 0 ? 'open' : ''} style="margin-bottom:8px">
+        <summary style="cursor:pointer;font-size:13px;padding:4px 0"><code>${esc(f.filename)}</code></summary>
+        <pre class="preview" style="margin-top:6px">${esc(f.content)}</pre>
+      </details>`).join('');
+    showModal(`
+      <h2>📄 推送预览</h2>
+      <div class="modal-sub">共 ${files.length} 个文件，同名文件会覆盖 Kindle 上的旧版</div>
+      ${body}
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">关闭</button>
+        <button class="btn btn-success" onclick="closeModal();pushToKindle()">📤 推送</button>
+      </div>`);
+  } catch (e) { showToast('预览失败: ' + e.message, 'error'); }
+}
+
+// 推送结果文案：部分失败要说清楚是哪几道，不能只报一句「已推送」
+function pushSummary(d) {
+  const ok = (d.pushed || []).length, bad = (d.failed || []).length;
+  if (!bad) return { msg: `已推送 ${ok} 个文件 → ${d.dir}`, type: 'success' };
+  const names = d.failed.map(f => f.filename.replace(/\.txt$/, '')).join('、');
+  return { msg: `推送 ${ok} 个成功，${bad} 个失败：${names}（${d.failed[0].error}）`, type: 'error' };
+}
+
+async function pushToKindle() {
+  if (!planSlugs.length) return showToast('推送列表是空的', 'error');
+  showToast('推送中…');
+  try {
+    // 先落库再推：自动保存是防抖的，用户可能在 500ms 内就点了推送
+    await saveMenu(true);
+    const d = await api('/kindle/push', { method: 'POST', headers: hdr(true) });
+    const s = pushSummary(d);
+    showToast(s.msg, s.type);
+    loadMenu(); reload();     // 刷新卡片上的「已推送」标记
+  } catch (e) { showToast('推送失败: ' + e.message, 'error'); }
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════
+// 弹窗基础
+// ═══════════════════════════════════════════
+// 弹窗关闭有三个出口（点遮罩 / Esc / 取消按钮），全部走 requestClose()：
+// 表单没动过就直接关，动过了才弹二次确认。closeModal() 是无条件强制关闭，
+// 只给保存成功、跳转到另一个弹窗这类"已经处理过内容"的路径用。
+let modalGuard = false;      // 当前弹窗是否需要脏检查
+let modalScope = null;       // 只有这些选择器命中的才算"内容"；null = 全部表单控件
+let modalBaseline = null;    // 打开那一刻的表单快照
+let pendingConfirm = null;   // 确认层点"确定"时要执行的动作
+
+// 把弹窗里的"内容"序列化成一个字符串，用于比较是否改动过。
+// scope 区分内容与开关：勾一下「覆盖已存在的」是调选项，不是写了东西，
+// 拿它当未保存内容去拦人就是误报。编辑器不传 scope，整张表单都算内容。
+function modalFormState() {
+  const root = document.getElementById('modal-root');
+  if (!root) return '';
+  const sel = modalScope || 'input, textarea, select';
+  const fields = [...root.querySelectorAll(sel)].map(el =>
+    (el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? '1' : '0') : el.value
+  );
+  const chips = modalScope ? [] : [...root.querySelectorAll('.chip.active')].map(c => c.dataset.tag);
+  return JSON.stringify([fields, chips]);
+}
+function modalDirty() { return modalGuard && modalBaseline !== null && modalFormState() !== modalBaseline; }
+// 内容已经落库后重设基线，免得保存完/转换完还被自己的脏检查拦一道
+function rebaselineModal() { if (modalGuard) modalBaseline = modalFormState(); }
+
+function showModal(html, opts) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = '<div class="modal-mask"><div class="modal">' + html + '</div></div>';
+  const mask = root.firstElementChild;
+  // 只有 mousedown 和 mouseup 都落在遮罩上才算"点了外面"。
+  // 否则在 textarea 里拖选文字、松手时鼠标已划出弹窗，click 会派发到遮罩上，弹窗直接关掉。
+  let downOnMask = false;
+  mask.addEventListener('mousedown', e => { downOnMask = (e.target === mask); });
+  mask.addEventListener('mouseup', e => {
+    const outside = downOnMask && e.target === mask;
+    downOnMask = false;
+    if (outside) requestClose();
+  });
+  modalGuard = !!(opts && opts.guard);
+  modalScope = (opts && opts.scope) || null;
+  modalBaseline = modalGuard ? modalFormState() : null;
+}
+
+function closeModal() {
+  closeConfirm();
+  detailSlug = null;
+  document.getElementById('modal-root').innerHTML = '';
+  modalGuard = false; modalScope = null; modalBaseline = null;
+}
+
+function requestClose() {
+  if (!modalDirty()) return closeModal();
+  showConfirm({
+    title: '放弃未保存的修改？',
+    content: '这个弹窗里的内容还没保存，关掉就没了。',
+    confirmLabel: '放弃修改', danger: true,
+    cancelLabel: '继续编辑',
+    onConfirm: closeModal,
+  });
+}
+
+// ── 二次确认层 ──
+// 盖在弹窗之上（z-index 更高），弹窗 DOM 原样保留，选"继续编辑"即回到原状态、光标内容都还在
+function showConfirm(o) {
+  pendingConfirm = o.onConfirm || null;
+  document.getElementById('confirm-root').innerHTML = `
+    <div class="modal-mask confirm-mask"><div class="modal confirm-box">
+      <h2>${esc(o.title)}</h2>
+      <div class="modal-sub">${esc(o.content || '')}</div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeConfirm()">${esc(o.cancelLabel || '取消')}</button>
+        <button class="btn ${o.danger ? 'btn-danger' : 'btn-primary'}" onclick="runConfirm()">${esc(o.confirmLabel || '确定')}</button>
+      </div>
+    </div></div>`;
+  const mask = document.getElementById('confirm-root').firstElementChild;
+  // 确认层点外面 = 取消（回到编辑），这是安全的那一侧
+  mask.addEventListener('mousedown', e => { if (e.target === mask) closeConfirm(); });
+  // 焦点给"继续编辑"而不是"放弃修改"：顺手一个回车不该把稿子敲没了。
+  // 危险操作永远不做默认选项。
+  const safeBtn = mask.querySelector('.modal-actions .btn:not(.btn-danger):not(.btn-primary)');
+  if (safeBtn) safeBtn.focus();
+}
+function confirmOpen() { return !!document.getElementById('confirm-root').firstElementChild; }
+function closeConfirm() { document.getElementById('confirm-root').innerHTML = ''; pendingConfirm = null; }
+function runConfirm() { const fn = pendingConfirm; closeConfirm(); if (fn) fn(); }
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (confirmOpen()) return closeConfirm();   // Esc 先关确认层，等于"继续编辑"
+  requestClose();
+});
+
+// 有未保存内容时，关标签页/刷新也拦一道（浏览器只允许显示它自己的措辞）
+window.addEventListener('beforeunload', e => {
+  if (!modalDirty()) return;
+  e.preventDefault(); e.returnValue = '';
+});
+
+// ═══════════════════════════════════════════
+// 菜谱详情
+// ═══════════════════════════════════════════
+
+// 数一条菜谱里还有几处 [] 提问没被 AI 处理。
+// 与后端 recipe_convert.extract_questions 同一口径：转换成功后模型会把 []
+// 从各字段里剥掉，所以"还剩几个"正好等于"还欠几个回答"。
+function countPendingQuestions(r) {
+  const fields = [];
+  (r.ingredients || []).forEach(i => fields.push(i.name, i.amount, i.note));
+  (r.steps || []).forEach(s => fields.push(s.text));
+  fields.push(r.tips);
+  // 回答落进 tips 后带 ❓ 前缀，那行本身不算待答
+  const text = fields.filter(Boolean).join('\n')
+    .split('\n').filter(l => !l.trim().startsWith('❓')).join('\n');
+  return (text.match(/[\[［][^\[\]［］]{2,200}?[\]］]/g) || []).length;
+}
+
+// 详情弹窗里的按钮（收藏 / 加入推送列表 / 单推 / AI 重转）做完都**留在弹窗里**，
+// 原地重画。keep=true 时保住滚动位置和顶部的 AI 回答块 —— 收藏一下就把
+// 刚转换出的回答冲掉、页面跳回顶部，等于把人赶出去再请回来。
+let detailSlug = null;
+
+async function refreshDetail(slug) {
+  if (detailSlug !== slug || !document.querySelector('#modal-root .modal')) return;
+  await openDetail(slug, { keep: true });
+}
+
+async function openDetail(slug, opts) {
+  const keep = !!(opts && opts.keep);
+  const prevModal = document.querySelector('#modal-root .modal');
+  const prevScroll = keep && prevModal ? prevModal.scrollTop : 0;
+  const prevAi = keep ? (document.getElementById('detail-ai') || {}).innerHTML : null;
+  try {
+    const r = await api('/' + encodeURIComponent(slug));
+    detailSlug = slug;
+    // 缺用量的配料标黄：做饭时"盐 ——"这行是没法执行的，得让它显眼到值得点一次重转
+    const ings = (r.ingredients || []).map(i =>
+      `<div class="detail-ing"><span>${esc(i.name)}${i.note ? ' <span class="note">(' + esc(i.note) + ')</span>' : ''}</span>` +
+      (i.amount
+        ? `<span style="color:var(--text-dim)">${esc(i.amount)}</span>`
+        : '<span style="color:var(--yellow);opacity:.8">缺用量</span>') + '</div>'
+    ).join('') || '<span style="color:var(--text-dim);font-size:12px">（无配料信息）</span>';
+    // 待答提问：用户写下 [] 之后要能一眼看出"这条还没让 AI 跑过"
+    const pending = countPendingQuestions(r);
+    const steps = (r.steps || []).map(s =>
+      `<div class="detail-step"><span class="n">${s.order}</span><span>${esc(s.text)}</span></div>`
+    ).join('') || '<span style="color:var(--yellow);font-size:12px">⚠️ 没有步骤 —— 建议点下面的「AI 重新转换」</span>';
+    const tags = [
+      ...(r.method_tags || []).map(t => `<span class="minitag m">${esc(t)}</span>`),
+      ...(r.flavor_tags || []).map(t => `<span class="minitag f">${esc(t)}</span>`),
+      ...(r.ingredient_tags || []).map(t => `<span class="minitag i">${esc(t)}</span>`),
+      ...(r.custom_tags || []).map(t => `<span class="minitag">${esc(t)}</span>`),
+    ].join('');
+    const picked = planSlugs.includes(slug);
+    showModal(`
+      <h2>${esc(r.title)} ${r.favorite ? '⭐' : ''}</h2>
+      <div class="modal-sub">
+        ${esc(r.category || '未分类')}
+        ${r.servings ? ' · ' + esc(r.servings) : ''}
+        ${r.total_minutes ? ' · 约 ' + r.total_minutes + ' 分钟' : ''}
+        ${r.last_pushed_at ? ' · 📤 上次推送 ' + esc(fmtTime(r.last_pushed_at)) : ' · 未推送过'}
+        · <span style="opacity:.7">${esc(r.source)}</span>${isMine(r) ? ' <span class="badge-mine">我的</span>' : ''}
+      </div>
+      <div class="rcard-tags" style="margin-bottom:14px">${tags}</div>
+      <div id="detail-ai">${pending ? `<div style="padding:8px 10px;margin-bottom:12px;border-radius:6px;font-size:12px;color:var(--blue);background:var(--blue-bg)">✍️ 有 ${pending} 处 [] 提问还没让 AI 回答 —— 点下面的「AI 重新转换」</div>` : ''}</div>
+      <div class="detail-sec"><h4>配料</h4>${ings}</div>
+      <div class="detail-sec"><h4>步骤</h4>${steps}</div>
+      ${r.tips ? `<div class="detail-sec"><h4>小贴士</h4><div style="font-size:12px;color:var(--text-dim);line-height:1.7;white-space:pre-wrap">${esc(r.tips)}</div></div>` : ''}
+      ${r.source_url ? `<div style="font-size:11px"><a href="${esc(r.source_url)}" target="_blank">查看原文 ↗</a></div>` : ''}
+      <div class="modal-actions">
+        <button class="btn btn-danger btn-sm" onclick="delRecipe('${esc(slug)}')">删除</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-sm" onclick="toggleFav('${esc(slug)}',${!r.favorite})">${r.favorite ? '取消收藏' : '⭐ 收藏'}</button>
+        <button class="btn btn-sm" id="reconvert-btn" onclick="doReconvert('${esc(slug)}')">🤖 AI 重新转换</button>
+        <button class="btn btn-sm" onclick="closeModal();openEditor('${esc(slug)}')">✎ 编辑</button>
+        <button class="btn btn-sm" onclick="pushOne('${esc(slug)}')">📤 单推</button>
+        <button class="btn btn-sm ${picked ? 'btn-success' : 'btn-primary'}" onclick="togglePlan('${esc(slug)}');refreshDetail('${esc(slug)}')">${picked ? '✓ 移出推送列表' : '+ 推送列表'}</button>
+      </div>`);
+    if (keep) {
+      if (prevAi) document.getElementById('detail-ai').innerHTML = prevAi;
+      const m = document.querySelector('#modal-root .modal');
+      if (m) m.scrollTop = prevScroll;
+    }
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleFav(slug, fav) {
+  try {
+    await api('/' + encodeURIComponent(slug) + '/favorite', {
+      method: 'POST', headers: hdr(true), body: JSON.stringify({ favorite: fav }),
+    });
+    showToast(fav ? '已收藏' : '已取消收藏', 'success');
+    refreshDetail(slug); reload();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function delRecipe(slug) {
+  if (!confirm('确定删除这道菜？')) return;
+  try {
+    await api('/' + encodeURIComponent(slug), { method: 'DELETE', headers: hdr(true) });
+    showToast('已删除', 'success');
+    const i = planSlugs.indexOf(slug); if (i >= 0) planSlugs.splice(i, 1);
+    closeModal(); reload(); renderPlan();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function pushOne(slug) {
+  showToast('推送中…');
+  try {
+    const d = await api('/kindle/push/' + encodeURIComponent(slug), { method: 'POST', headers: hdr(true) });
+    showToast('已推送 → ' + d.pushed[0].path, 'success');
+    refreshDetail(slug); reload();
+  } catch (e) { showToast('推送失败: ' + e.message, 'error'); }
+}
+
+async function doReconvert(slug) {
+  showToast('DeepSeek 转换中，请稍候…');
+  const btn = document.getElementById('reconvert-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 转换中…'; }
+  try {
+    const d = await api('/' + encodeURIComponent(slug) + '/reconvert', { method: 'POST', headers: hdr(true) });
+    const ans = (d.answers && d.answers.length) ? ' · 回答了 ' + d.answers.length + ' 个问题' : '';
+    showToast(`转换完成（¥${d.cost_yuan}）${ans}`, 'success');
+    // 转换要好几秒，期间用户可能已经关掉弹窗 —— 那就别再把它弹回来
+    if (detailSlug !== slug || !document.querySelector('#modal-root .modal')) { reload(); return; }
+    await openDetail(slug, { keep: true }); reload();
+    // 回答与告警塞进详情弹窗顶部：toast 三秒就没，而「哪几味料没给量」
+    // 「有个问题没答上」正是用户下一步要处理的事，不能一闪而过。
+    const host = document.getElementById('detail-ai');
+    if (host) {
+      host.innerHTML = renderAnswers(d.answers) +
+        ((d.warnings && d.warnings.length)
+          ? '<div style="margin-top:8px;padding:6px 10px;border-radius:6px;font-size:12px;color:var(--yellow);border:1px solid var(--yellow)">⚠️ ' + esc(d.warnings.join('；')) + '</div>' : '');
+    }
+  } catch (e) {
+    showToast('转换失败: ' + e.message, 'error');
+    const b = document.getElementById('reconvert-btn');
+    if (b) { b.disabled = false; b.textContent = '🤖 AI 重新转换'; }
+  }
+}
+
+// ═══════════════════════════════════════════
+// 编辑器（手动添加 / 编辑）
+// ═══════════════════════════════════════════
+let editSlug = null;
+
+function ingRow(i = {}) {
+  return `<div class="ing-line">
+    <input type="text" placeholder="配料名" value="${esc(i.name || '')}">
+    <input type="text" placeholder="用量" value="${esc(i.amount || '')}">
+    <input type="text" placeholder="备注" value="${esc(i.note || '')}">
+    <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="this.parentElement.remove()">✕</button>
+  </div>`;
+}
+function stepRow(text = '', idx = 1) {
+  return `<div class="step-line">
+    <span class="idx">${idx}.</span>
+    <textarea placeholder="这一步做什么">${esc(text)}</textarea>
+    <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="this.parentElement.remove();renumber()">✕</button>
+  </div>`;
+}
+function renumber() {
+  document.querySelectorAll('#ed-steps .step-line .idx').forEach((el, i) => { el.textContent = (i + 1) + '.'; });
+}
+function addIng() { document.getElementById('ed-ings').insertAdjacentHTML('beforeend', ingRow()); }
+function addStep() {
+  const n = document.querySelectorAll('#ed-steps .step-line').length + 1;
+  document.getElementById('ed-steps').insertAdjacentHTML('beforeend', stepRow('', n));
+}
+
+function tagPicker(group, selected) {
+  return (VOCAB[group] || []).map(t =>
+    `<span class="chip ${(selected || []).includes(t) ? 'active' : ''}" onclick="this.classList.toggle('active')" data-tag="${esc(t)}">${esc(t)}</span>`
+  ).join('');
+}
+
+async function openEditor(slug) {
+  editSlug = slug || null;
+  let r = { ingredients: [], steps: [] };
+  if (slug) {
+    try { r = await api('/' + encodeURIComponent(slug)); }
+    catch (e) { return showToast(e.message, 'error'); }
+  }
+  showModal(`
+    <h2>${slug ? '编辑菜谱' : '手动添加菜谱'}</h2>
+    <div class="modal-sub">
+      ${slug ? esc(slug) : '标签留空会自动从内容推导'}<br>
+      <span style="color:var(--blue)">任意栏位都能用 <code>[方括号]</code> 写问题</span>（如用量栏 <code>[对500g鸡腿用多少]</code>、
+      小贴士 <code>[能提前做好冷藏吗]</code>），保存后点详情里的「AI 重新转换」，AI 会逐条回答并把答案填回对应字段。
+    </div>
+    <div class="field"><label>菜名 *</label><input type="text" id="ed-title" value="${esc(r.title || '')}"></div>
+    <div class="row2">
+      <div class="field">
+        <label>分类 <button class="btn btn-sm" onclick="quickAddTag('category')">+ 新分类</button></label>
+        <select id="ed-category" style="width:100%">${categoryOptions(r.category || '')}</select>
+      </div>
+      <div class="field"><label>份量</label><input type="text" id="ed-servings" placeholder="2 人份" value="${esc(r.servings || '')}"></div>
+    </div>
+    <div class="field"><label>预估耗时（分钟）</label><input type="number" id="ed-minutes" value="${r.total_minutes || ''}"></div>
+    <div class="field">
+      <label>配料 <button class="btn btn-sm" onclick="addIng()">+ 添加</button></label>
+      <div id="ed-ings">${(r.ingredients || []).map(ingRow).join('')}</div>
+    </div>
+    <div class="field">
+      <label>步骤 <button class="btn btn-sm" onclick="addStep()">+ 添加</button></label>
+      <div id="ed-steps">${(r.steps || []).map((s, i) => stepRow(s.text, i + 1)).join('')}</div>
+    </div>
+    <div class="field">
+      <label>做法标签 <button class="btn btn-sm" onclick="quickAddTag('method','ed-method')">+ 新标签</button></label>
+      <div class="chips" id="ed-method">${tagPicker('method', r.method_tags)}</div>
+    </div>
+    <div class="field">
+      <label>口味标签 <button class="btn btn-sm" onclick="quickAddTag('flavor','ed-flavor')">+ 新标签</button></label>
+      <div class="chips" id="ed-flavor">${tagPicker('flavor', r.flavor_tags)}</div>
+    </div>
+    <div class="field">
+      <label>主材标签 <button class="btn btn-sm" onclick="quickAddTag('ingredient','ed-ingredient')">+ 新标签</button></label>
+      <div class="chips" id="ed-ingredient">${tagPicker('ingredient', r.ingredient_tags)}</div>
+    </div>
+    <div class="field"><label>自定义标签（逗号分隔）</label><input type="text" id="ed-custom" value="${esc((r.custom_tags || []).join(','))}"></div>
+    <div class="field"><label>小贴士</label><textarea id="ed-tips" rows="2">${esc(r.tips || '')}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="requestClose()">取消</button>
+      <button class="btn btn-primary" onclick="saveEditor()">保存</button>
+    </div>`, { guard: true });
+}
+
+function collectTags(id) {
+  return [...document.querySelectorAll('#' + id + ' .chip.active')].map(c => c.dataset.tag);
+}
+
+async function saveEditor() {
+  const title = document.getElementById('ed-title').value.trim();
+  if (!title) return showToast('菜名不能为空', 'error');
+
+  const ingredients = [...document.querySelectorAll('#ed-ings .ing-line')].map(l => {
+    const v = [...l.querySelectorAll('input')].map(i => i.value.trim());
+    return { name: v[0], amount: v[1], note: v[2] };
+  }).filter(i => i.name);
+  const steps = [...document.querySelectorAll('#ed-steps .step-line textarea')]
+    .map(t => t.value.trim()).filter(Boolean);
+  const custom = document.getElementById('ed-custom').value.split(',').map(s => s.trim()).filter(Boolean);
+  const minutes = document.getElementById('ed-minutes').value;
+
+  const payload = {
+    title,
+    category: document.getElementById('ed-category').value.trim(),
+    servings: document.getElementById('ed-servings').value.trim(),
+    total_minutes: minutes ? parseInt(minutes, 10) : null,
+    tips: document.getElementById('ed-tips').value.trim(),
+    ingredients, steps,
+    method_tags: collectTags('ed-method'),
+    flavor_tags: collectTags('ed-flavor'),
+    ingredient_tags: collectTags('ed-ingredient'),
+    custom_tags: custom,
+  };
+
+  try {
+    if (editSlug) {
+      await api('/' + encodeURIComponent(editSlug), { method: 'PATCH', headers: hdr(true), body: JSON.stringify(payload) });
+    } else {
+      await api('', { method: 'POST', headers: hdr(true), body: JSON.stringify(payload) });
+    }
+    showToast('已保存', 'success');
+    const back = editSlug;
+    closeModal(); reload();   // 已落库，无条件关
+    // 从详情点「编辑」进来的，存完回到那道菜的详情，而不是直接退回列表
+    if (back) openDetail(back);
+  } catch (e) { showToast('保存失败: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════
+// AI 转换 / 导入
+// ═══════════════════════════════════════════
+// AI 回答块。answers 现在是 {question, answer, where} 对象；老数据是纯字符串，
+// 两种都要能显示 —— 库里存量条目的 tips 里还留着旧格式的回答。
+function renderAnswers(answers) {
+  if (!answers || !answers.length) return '';
+  const rows = answers.map(a => {
+    if (typeof a === 'string') return '<div style="margin-top:4px">' + esc(a) + '</div>';
+    const where = a.where ? `<span style="opacity:.6">［${esc(a.where)}］</span>` : '';
+    const q = a.question ? `<div style="opacity:.75">${where}${esc(a.question)}</div>` : where;
+    return `<div style="margin-top:6px">${q}<div style="padding-left:8px;border-left:2px solid var(--blue)">${esc(a.answer || '')}</div></div>`;
+  }).join('');
+  return `<div style="margin-top:10px;padding:8px 10px;background:var(--blue-bg);border-radius:6px;font-size:12px;line-height:1.7">
+    <b>💡 AI 回答了你的 ${answers.length} 个提问：</b>${rows}</div>`;
+}
+
+function openConvert() {
+  showModal(`
+    <h2>🤖 AI 菜谱转换</h2>
+    <div class="modal-sub">
+      粘贴任意格式的菜谱文本（公众号、小红书、随手记的流水账都行），DeepSeek 会转成结构化条目。<br>
+      <b style="color:var(--blue)">用 [方括号] 夹带提问</b>，AI 会逐条回答，并把答案落回对应字段：<br>
+      · 在盐的用量栏写 <code>[对500g鸡腿用多少]</code> → 算出克数直接填进用量<br>
+      · 在小贴士里写 <code>[能提前煮好冷藏吗？怎么复热]</code> → 在小贴士里展开回答<br>
+      没填用量的配料，AI 会按份量推算一个，不会留空。
+    </div>
+    <textarea id="cv-text" rows="12" placeholder="例：
+土豆炖牛腩
+牛腩两斤切块冷水下锅焯一下，土豆三个滚刀块。
+锅里放油炒糖色，下牛腩翻炒上色，加姜片八角桂皮，倒热水没过，大火烧开转小火炖一个半小时，
+最后半小时下土豆，出锅前放盐收汁[盐放多少？我们两个人吃]。"></textarea>
+    <div class="panel-row" style="margin-top:10px">
+      <label class="inline"><input type="checkbox" id="cv-store" checked> 转换后直接入库</label>
+      <span style="flex:1"></span>
+      <span style="font-size:11px;color:var(--text-dim)">约 ¥0.001–0.01 / 次</span>
+    </div>
+    <div id="cv-result"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="requestClose()">取消</button>
+      <button class="btn btn-primary" id="cv-btn" onclick="doConvert()">开始转换</button>
+    </div>`, { guard: true, scope: '#cv-text' });
+}
+
+async function doConvert() {
+  const text = document.getElementById('cv-text').value.trim();
+  if (!text) return showToast('请先粘贴菜谱文本', 'error');
+  const btn = document.getElementById('cv-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 转换中…';
+  try {
+    const d = await api('/convert', {
+      method: 'POST', headers: hdr(true),
+      body: JSON.stringify({ text, store: document.getElementById('cv-store').checked }),
+    });
+    const r = d.recipe;
+    document.getElementById('cv-result').innerHTML = `
+      <div class="panel" style="margin-top:12px">
+        <h3>✅ ${esc(r.title)}</h3>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">
+          ${esc(r.category)} · ${r.ingredients.length} 味配料 · ${r.steps.length} 步
+          ${r.total_minutes ? ' · 约 ' + r.total_minutes + ' 分钟' : ''} · 花费 ¥${d.cost_yuan}
+        </div>
+        <div class="rcard-tags">
+          ${(r.method_tags || []).map(t => '<span class="minitag m">' + esc(t) + '</span>').join('')}
+          ${(r.flavor_tags || []).map(t => '<span class="minitag f">' + esc(t) + '</span>').join('')}
+          ${(r.ingredient_tags || []).map(t => '<span class="minitag i">' + esc(t) + '</span>').join('')}
+        </div>
+        ${renderAnswers(d.answers)}
+        ${r.tips ? '<div style="font-size:11px;color:var(--text-dim);margin-top:8px;white-space:pre-wrap;line-height:1.6"><b>小贴士：</b>' + esc(r.tips) + '</div>' : ''}
+        ${d.warnings && d.warnings.length ? '<div style="font-size:11px;color:var(--yellow);margin-top:8px">⚠️ ' + esc(d.warnings.join('；')) + '</div>' : ''}
+        ${d.stored ? '<div style="font-size:11px;color:var(--green);margin-top:8px">已入库</div>' : '<div style="font-size:11px;color:var(--text-dim);margin-top:8px">仅预览，未入库</div>'}
+      </div>`;
+    rebaselineModal();   // 结果已呈现，此后关窗不该再拦
+    reload();
+  } catch (e) {
+    document.getElementById('cv-result').innerHTML =
+      '<div class="panel" style="margin-top:12px;border-color:var(--red)"><span style="color:var(--red)">转换失败：' + esc(e.message) + '</span></div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '开始转换';
+  }
+}
+
+function openImport() {
+  showModal(`
+    <h2>📥 导入菜谱库</h2>
+    <div class="modal-sub">从 GitHub 拉取 HowToCook 家常菜库，或粘贴单份 Markdown</div>
+    <div class="panel">
+      <h3>HowToCook 全量导入（家常菜）</h3>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">
+        克隆 <a href="https://github.com/Anduin2017/HowToCook" target="_blank">Anduin2017/HowToCook</a> 并批量解析入库（约 370 道）。
+        面向家庭厨房，自带难度分级与热量，步骤写给没经验的人看。<br>
+        重复导入默认跳过已存在的，不会覆盖你编辑过的内容。
+      </div>
+      <label class="inline" style="margin-bottom:10px"><input type="checkbox" id="im-overwrite"> 覆盖已存在的（会丢失手工编辑）</label>
+      <div><button class="btn btn-primary" id="im-btn" onclick="doImport()">开始导入</button></div>
+      <div id="im-result" style="margin-top:10px"></div>
+    </div>
+    <div class="panel">
+      <h3>粘贴 Markdown（规则解析，不花 API 额度）</h3>
+      <textarea id="im-md" rows="8" placeholder="# 菜名
+
+## 配料
+- 五花肉 200g
+
+## 步骤
+- 1. …"></textarea>
+      <div class="panel-row" style="margin-top:8px">
+        <input type="text" id="im-cat" placeholder="分类（可选）" style="flex:1">
+        <button class="btn" onclick="doImportMd()">解析入库</button>
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="requestClose()">关闭</button></div>`, { guard: true, scope: '#im-md' });
+}
+
+async function doImport() {
+  const btn = document.getElementById('im-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 拉取中…（首次约需半分钟）';
+  try {
+    const d = await api('/import/howtocook', {
+      method: 'POST', headers: hdr(true),
+      body: JSON.stringify({ overwrite: document.getElementById('im-overwrite').checked }),
+    });
+    document.getElementById('im-result').innerHTML =
+      `<div style="font-size:12px;color:var(--green)">✅ 新增 ${d.imported} · 跳过 ${d.skipped} · 失败 ${d.failed}` +
+      (d.needs_convert && d.needs_convert.length
+        ? `<div style="color:var(--yellow);margin-top:6px">⚠️ ${d.needs_convert.length} 道没解析出步骤，可在卡片上看到「缺步骤」标记，点进去用 AI 重新转换</div>` : '') + '</div>';
+    reload();
+  } catch (e) {
+    document.getElementById('im-result').innerHTML = '<span style="color:var(--red);font-size:12px">' + esc(e.message) + '</span>';
+  } finally { btn.disabled = false; btn.textContent = '开始导入'; }
+}
+
+async function doImportMd() {
+  const content = document.getElementById('im-md').value.trim();
+  if (!content) return showToast('请粘贴内容', 'error');
+  try {
+    const d = await api('/import/markdown', {
+      method: 'POST', headers: hdr(true),
+      body: JSON.stringify({ content, category: document.getElementById('im-cat').value.trim() }),
+    });
+    showToast('已入库：' + d.title, 'success');
+    document.getElementById('im-md').value = '';
+    rebaselineModal();
+    reload();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+(async function init() {
+  mountTokenBar();
+  try { VOCAB = await api('/tags'); } catch (e) { showToast('标签词表加载失败', 'error'); }
+  await Promise.all([reload(), loadMenu()]);
+  checkKindle();
+})();
+</script>
+
+<script>
+// ═══════════════════════════════════════════
+// 标签管理（含分类）
+// ═══════════════════════════════════════════
+let VOCAB_USAGE = {};
+const GROUP_ORDER = ['method', 'flavor', 'ingredient', 'category'];
+
+async function openTagManager() {
+  try {
+    const d = await api('/vocab');
+    VOCAB = d.groups;
+    VOCAB_USAGE = d.usage || {};
+    renderTagManager(d.labels || {});
+  } catch (e) { showToast('读取标签失败: ' + e.message, 'error'); }
+}
+
+function renderTagManager(labels) {
+  const body = GROUP_ORDER.map(g => {
+    const tags = VOCAB[g] || [];
+    const usage = VOCAB_USAGE[g] || {};
+    const rows = tags.map(t => `
+      <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="flex:1;font-size:13px">${esc(t)}</span>
+        <span style="font-size:11px;color:var(--text-dim);min-width:52px;text-align:right">${usage[t] || 0} 道</span>
+        <button class="btn btn-sm btn-ghost" title="重命名" onclick="renameTag('${g}','${esc(t)}')">✎</button>
+        <button class="btn btn-sm btn-ghost" style="color:var(--red)" title="删除" onclick="deleteTag('${g}','${esc(t)}')">✕</button>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:6px 0">（空）</div>';
+    return `
+      <div class="panel" style="margin-bottom:10px">
+        <h3>${esc(labels[g] || g)} <span style="font-weight:400;color:var(--text-dim);font-size:12px">· ${tags.length} 个</span></h3>
+        <div style="max-height:220px;overflow-y:auto;margin-bottom:8px">${rows}</div>
+        <div class="panel-row" style="margin-bottom:0">
+          <input type="text" id="newtag-${g}" placeholder="新增${esc(labels[g] || '')}标签" style="flex:1"
+                 onkeydown="if(event.key==='Enter')addTag('${g}')">
+          <button class="btn btn-sm btn-primary" onclick="addTag('${g}')">添加</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  showModal(`
+    <h2>🏷️ 标签管理</h2>
+    <div class="modal-sub">改名会同步改写所有引用它的菜谱；删除会从菜谱上摘掉该标签</div>
+    ${body}
+    <div class="modal-actions"><button class="btn" onclick="closeModal();reload()">完成</button></div>`);
+}
+
+async function addTag(group) {
+  const input = document.getElementById('newtag-' + group);
+  const tag = input.value.trim();
+  if (!tag) return;
+  try {
+    await api('/vocab/' + group + '/add', {
+      method: 'POST', headers: hdr(true), body: JSON.stringify({ tag }),
+    });
+    input.value = '';
+    showToast('已添加「' + tag + '」', 'success');
+    openTagManager();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function renameTag(group, old) {
+  const next = prompt('把「' + old + '」改名为：', old);
+  if (next === null) return;
+  if (!next.trim() || next === old) return;
+  try {
+    await api('/vocab/' + group + '/rename', {
+      method: 'POST', headers: hdr(true), body: JSON.stringify({ old, new: next.trim() }),
+    });
+    showToast('已改名，引用同步更新', 'success');
+    openTagManager();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteTag(group, tag) {
+  const n = (VOCAB_USAGE[group] || {})[tag] || 0;
+  const warn = n ? ('有 ' + n + ' 道菜在用，删除后会从这些菜谱上摘掉。') : '';
+  if (!confirm('删除标签「' + tag + '」？' + warn)) return;
+  try {
+    await api('/vocab/' + group + '/' + encodeURIComponent(tag), {
+      method: 'DELETE', headers: hdr(true),
+    });
+    showToast('已删除', 'success');
+    openTagManager();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// 编辑器里「+ 新标签」：就地加进词表并选中，不用跳去标签管理
+async function quickAddTag(group, containerId) {
+  const tag = prompt('新增' + ({ method: '做法', flavor: '口味', ingredient: '主材', category: '分类' }[group] || '') + '标签：');
+  if (!tag || !tag.trim()) return;
+  try {
+    const d = await api('/vocab/' + group + '/add', {
+      method: 'POST', headers: hdr(true), body: JSON.stringify({ tag: tag.trim() }),
+    });
+    VOCAB[group] = d.tags;
+    if (group === 'category') {
+      const sel = document.getElementById('ed-category');
+      sel.innerHTML = categoryOptions(tag.trim());
+    } else {
+      // 重渲染该组 chips，并保留已选中的
+      const box = document.getElementById(containerId);
+      const picked = [...box.querySelectorAll('.chip.active')].map(c => c.dataset.tag);
+      picked.push(tag.trim());
+      box.innerHTML = tagPicker(group, picked);
+    }
+    showToast('已添加「' + tag.trim() + '」', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function categoryOptions(selected) {
+  const cats = VOCAB.category || [];
+  const opts = ['<option value="">（未分类）</option>'];
+  for (const c of cats) {
+    opts.push('<option value="' + esc(c) + '"' + (c === selected ? ' selected' : '') + '>' + esc(c) + '</option>');
+  }
+  // 菜谱里存着一个词表里没有的旧分类时，也要能显示出来（否则一保存就丢了）
+  if (selected && !cats.includes(selected)) {
+    opts.push('<option value="' + esc(selected) + '" selected>' + esc(selected) + '（未在词表）</option>');
+  }
+  return opts.join('');
+}
+</script>
+</body>
+</html>

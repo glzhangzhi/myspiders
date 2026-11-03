@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>账单 · 支出</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💶</text></svg>">
+<link rel="stylesheet" href="/dashboard/theme.css">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; font-size:13px; }
+a { color:var(--blue); text-decoration:none; }
+
+header { display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:11px 20px; border-bottom:1px solid var(--border); background:var(--surface);
+  position:sticky; top:0; z-index:30; }
+header h1 { font-size:19px; font-weight:600; }
+.header-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+.btn { padding:5px 13px; border-radius:6px; font-size:12px; cursor:pointer;
+  border:1px solid var(--border); background:transparent; color:var(--text-dim);
+  transition:all .15s; white-space:nowrap; font-family:inherit; }
+.btn:hover { color:var(--text); border-color:var(--text-dim); }
+.btn:disabled { opacity:.3; cursor:not-allowed; }
+.btn-sm { padding:3px 9px; font-size:11px; }
+.btn-primary { background:var(--blue); color:#fff; border-color:var(--blue); }
+.btn-primary:hover { opacity:.9; color:#fff; }
+.btn-success { background:var(--green); color:#fff; border-color:var(--green); }
+.btn-success:hover { opacity:.9; color:#fff; }
+.btn-danger { color:var(--red); border-color:var(--red); }
+.btn-danger:hover { background:var(--red); color:#fff; }
+.btn-ghost { border-color:transparent; }
+
+input[type=text], input[type=number], input[type=date], textarea, select {
+  background:var(--bg); border:1px solid var(--border); color:var(--text);
+  border-radius:6px; padding:5px 8px; font-size:12px; font-family:inherit; outline:none; }
+input:focus, textarea:focus, select:focus { border-color:var(--blue); }
+select { cursor:pointer; }
+
+/* ── 页内主标签 ── */
+#page-nav { display:flex; gap:0; border-bottom:1px solid var(--border); background:var(--surface);
+  position:sticky; top:45px; z-index:25; padding:0 20px; }
+.ptab { padding:9px 18px; font-size:13px; cursor:pointer; border:none; background:transparent;
+  color:var(--text-dim); border-bottom:2px solid transparent; transition:all .2s; font-family:inherit; }
+.ptab:hover { color:var(--text); background:var(--surface2); }
+.ptab.active { color:var(--blue); border-bottom-color:var(--blue); }
+.pane { display:none; padding:14px 20px 60px; }
+.pane.active { display:block; }
+
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:13px 15px; margin-bottom:12px; }
+.panel h3 { font-size:13px; font-weight:600; margin-bottom:10px; display:flex;
+  align-items:center; gap:7px; flex-wrap:wrap; }
+.panel h3 .sub { font-size:11px; color:var(--text-dim); font-weight:400; }
+.hint { font-size:11px; color:var(--text-dim); line-height:1.6; }
+
+/* ── 月份选择 ── */
+.months { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.mchip { padding:4px 11px; border-radius:7px; font-size:12px; cursor:pointer; user-select:none;
+  border:1px solid var(--border); background:var(--bg); color:var(--text-dim); transition:all .12s;
+  display:flex; align-items:center; gap:6px; }
+.mchip:hover { border-color:var(--text-dim); color:var(--text); }
+.mchip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+.mchip .mb { font-size:10px; opacity:.8; }
+.mchip .done { color:var(--green); font-size:10px; }
+.mchip.active .done { color:#d7ffe3; }
+
+.chips { display:flex; flex-wrap:wrap; gap:5px; }
+.chip { padding:3px 9px; border-radius:12px; font-size:11px; cursor:pointer; user-select:none;
+  border:1px solid var(--border); background:var(--bg); color:var(--text-dim); transition:all .12s; }
+.chip:hover { border-color:var(--text-dim); color:var(--text); }
+.chip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+.chip .cnt { opacity:.6; margin-left:3px; font-size:10px; }
+
+/* ── 进度条 ── */
+.prog { height:6px; background:var(--bg); border-radius:3px; overflow:hidden; border:1px solid var(--border); }
+.prog > i { display:block; height:100%; background:var(--green); transition:width .3s; }
+
+/* ── 交易条目 ── */
+.tx-list { display:flex; flex-direction:column; gap:5px; }
+.tx { background:var(--surface); border:1px solid var(--border); border-radius:9px;
+  transition:border-color .12s; }
+.tx.sel { border-color:var(--blue); box-shadow:0 0 0 1px var(--blue); }
+.tx.reviewed { background:var(--surface); border-color:rgba(63,185,80,.35); }
+.tx.excluded { opacity:.45; }
+.tx-head { display:grid; grid-template-columns:78px 1fr 170px 96px 30px; gap:10px;
+  align-items:center; padding:8px 12px; cursor:pointer; }
+@media (max-width:900px) { .tx-head { grid-template-columns:70px 1fr 100px; } .tx-head .cat-cell { display:none; } }
+.tx-date { font-size:11px; color:var(--text-dim); font-variant-numeric:tabular-nums; }
+.tx-main { min-width:0; }
+.tx-merchant { font-size:13px; font-weight:500; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; display:flex; align-items:center; gap:6px; }
+.tx-raw { font-size:10px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; margin-top:1px; }
+.tx-amt { font-size:14px; font-variant-numeric:tabular-nums; text-align:right; font-weight:500; }
+.tx-amt.pos { color:var(--green); }
+.tx-tick { text-align:center; font-size:14px; color:var(--grey); }
+.tx.reviewed .tx-tick { color:var(--green); }
+
+.cat-cell { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+.cbadge { font-size:10px; padding:2px 7px; border-radius:10px; white-space:nowrap;
+  border:1px solid transparent; }
+.cbadge.l2 { background:var(--bg); color:var(--text-dim); border-color:var(--border); }
+.kbadge { font-size:9px; padding:1px 5px; border-radius:4px; white-space:nowrap; }
+.kbadge.transfer { background:rgba(122,130,142,.22); color:var(--text-dim); }
+.kbadge.income   { background:rgba(63,185,80,.18); color:var(--green); }
+.kbadge.refund   { background:rgba(188,140,255,.18); color:var(--purple); }
+.kbadge.fixed    { background:rgba(88,166,255,.15); color:var(--blue); }
+.tagpill { font-size:10px; padding:1px 7px; border-radius:9px; background:rgba(188,140,255,.15);
+  color:var(--purple); white-space:nowrap; }
+
+/* 展开后的编辑区 */
+.tx-edit { border-top:1px dashed var(--border); padding:11px 12px 12px; display:none; }
+.tx.open .tx-edit { display:block; }
+.erow { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:9px; }
+.fld { display:flex; flex-direction:column; gap:3px; }
+.fld > label { font-size:10px; color:var(--text-dim); }
+.fld input, .fld select { min-width:0; }
+.fld.grow { flex:1; min-width:140px; }
+.fld.grow input { width:100%; }
+.memo-box { font-size:11px; color:var(--text-dim); background:var(--bg); border:1px solid var(--border);
+  border-radius:6px; padding:6px 9px; margin-bottom:9px; line-height:1.6; word-break:break-all; }
+.memo-box b { color:var(--text); font-weight:500; }
+.tagedit { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+.tagedit .tagpill { cursor:pointer; }
+.tagedit .tagpill:hover { background:rgba(248,81,73,.18); color:var(--red); }
+
+.bulkbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:8px 12px;
+  background:var(--blue-bg); border:1px solid var(--blue); border-radius:9px; margin-bottom:10px; }
+
+/* ── 统计卡 ── */
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:10px; }
+.scard { background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:11px 13px; }
+.scard .lbl { font-size:11px; color:var(--text-dim); margin-bottom:4px; }
+.scard .val { font-size:19px; font-weight:600; font-variant-numeric:tabular-nums; }
+.scard .dlt { font-size:11px; color:var(--text-dim); margin-top:3px; }
+.scard .dlt.up { color:var(--red); } .scard .dlt.down { color:var(--green); }
+
+/* ── 柱状图 ── */
+.chart { display:flex; align-items:flex-end; gap:8px; height:230px; padding-top:8px; }
+.bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
+.bar-stack { width:100%; max-width:64px; display:flex; flex-direction:column-reverse;
+  border-radius:4px 4px 0 0; overflow:hidden; position:relative; cursor:pointer; }
+.bar-stack > div { width:100%; min-height:0; transition:opacity .15s; }
+.bar-stack:hover > div { opacity:.82; }
+/* 固定行高：标签为空时元素塌成 0 高而 gap 照常生效，柱子基线会参差 */
+.bar-label { font-size:10px; color:var(--text-dim); height:14px; line-height:14px; flex:0 0 14px; white-space:nowrap; }
+.bar-val { font-size:10px; color:var(--text-dim); font-variant-numeric:tabular-nums;
+  height:14px; line-height:14px; flex:0 0 14px; white-space:nowrap; }
+.legend { display:flex; gap:12px; flex-wrap:wrap; font-size:11px; margin-top:10px; }
+.legend span { display:flex; align-items:center; gap:5px; color:var(--text-dim); cursor:pointer; user-select:none; }
+.legend span.off { opacity:.35; text-decoration:line-through; }
+.legend i { width:10px; height:10px; border-radius:3px; display:inline-block; flex:none; }
+
+/* ── 环形图 ── */
+.donut-row { display:grid; grid-template-columns:200px 1fr; gap:18px; align-items:center; }
+@media (max-width:700px) { .donut-row { grid-template-columns:1fr; } }
+.donut { width:180px; height:180px; border-radius:50%; position:relative; margin:0 auto; }
+.donut::after { content:''; position:absolute; inset:27%; background:var(--surface); border-radius:50%; }
+.donut-mid { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; z-index:2; }
+.donut-mid .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; }
+.donut-mid .l { font-size:10px; color:var(--text-dim); }
+
+/* ── 排行表 ── */
+.rank { width:100%; border-collapse:collapse; font-size:12px; }
+.rank th { font-size:11px; color:var(--text-dim); font-weight:500; text-align:left;
+  padding:5px 8px; border-bottom:1px solid var(--border); }
+.rank td { padding:5px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.rank tr:last-child td { border-bottom:none; }
+.rank tr:hover td { background:var(--surface2); }
+.rank .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rank .mini { height:5px; border-radius:3px; background:var(--blue); min-width:2px; }
+.rank .mo { font-size:11px; white-space:nowrap; }
+.rank .mo.up { color:var(--red); } .rank .mo.down { color:var(--green); }
+.rank .cdot { width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:6px; flex:none; }
+.rank tr.sub td { background:var(--bg); }
+.rank tr.sub td:first-child { padding-left:26px; color:var(--text-dim); }
+
+/* ── 热力图（每个选中月份一块，共用同一套色阶量程）── */
+.heat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:14px; }
+.heat-title { font-size:11px; color:var(--text-dim); margin-bottom:5px; display:flex;
+  justify-content:space-between; align-items:baseline; }
+.heat-title span { font-variant-numeric:tabular-nums; color:var(--text); font-size:11px; }
+.heat { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.heat .hd { font-size:9px; color:var(--text-dim); text-align:center; height:12px; }
+.heat .cell { aspect-ratio:1; border-radius:3px; background:var(--bg); border:1px solid var(--border);
+  font-size:9px; color:var(--text-dim); display:flex; align-items:center; justify-content:center; }
+/* h3 里的 chip 按钮：默认是 span 的样式，用作 button 时要压掉浏览器默认外观 */
+h3 > button.chip { font-family:inherit; }
+
+/* ── 瀑布 ── */
+.wf { display:flex; flex-direction:column; gap:6px; }
+.wf-row { display:grid; grid-template-columns:96px 1fr 92px; gap:10px; align-items:center; font-size:12px; }
+.wf-lbl { color:var(--text-dim); font-size:11px; white-space:nowrap; }
+.wf-track { height:20px; position:relative; background:var(--bg); border-radius:4px; overflow:hidden; }
+.wf-track > i { position:absolute; top:0; height:100%; border-radius:3px; }
+.wf-num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+/* 汇总页的两栏在窄屏必须塌成一栏 —— 否则环形图和表格挤在 190px 里全糊了 */
+@media (max-width:1000px) {
+  #two-col, #two-col2 { grid-template-columns:1fr !important; }
+  .donut-row { grid-template-columns:1fr; }
+  .chart { height:180px; gap:5px; }
+  header { padding:9px 12px; } header h1 { font-size:16px; }
+  #page-nav { padding:0 12px; } .pane { padding:12px 12px 50px; }
+}
+.empty { padding:34px; text-align:center; color:var(--text-dim); font-size:12px; }
+.toast { position:fixed; bottom:22px; right:22px; padding:9px 17px; border-radius:8px;
+  background:var(--surface); border:1px solid var(--border); font-size:13px; z-index:2000;
+  opacity:0; transform:translateY(10px); transition:all .25s; pointer-events:none; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.error { border-color:var(--red); color:var(--red); }
+.toast.success { border-color:var(--green); color:var(--green); }
+
+.modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.66); z-index:1000;
+  display:flex; align-items:center; justify-content:center; padding:20px; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  width:100%; max-width:640px; max-height:86vh; overflow-y:auto; padding:18px 20px; }
+.modal h2 { font-size:16px; margin-bottom:3px; }
+.modal-sub { font-size:11px; color:var(--text-dim); margin-bottom:14px; line-height:1.6; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:15px; }
+.vgroup { border:1px solid var(--border); border-radius:8px; padding:9px 11px; margin-bottom:8px; }
+.vgroup-head { display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+.vgroup-head .nm { font-size:13px; font-weight:500; flex:1; }
+kbd { background:var(--bg); border:1px solid var(--border); border-bottom-width:2px; border-radius:4px;
+  padding:1px 5px; font-size:10px; font-family:inherit; color:var(--text-dim); }
+</style>
+<!-- dsh-embed-chrome: 被 index.html 的 iframe 内嵌时去掉自己的标题 ——
+     外层侧边栏已经写着「我在哪」，再来一行 h1 是第二条标题栏，白占竖向空间。
+     判据用 self!==top 而不是写死：这些页面单独打开仍是可用的完整页面，那时标题必须留着。
+     放 <head> 内联脚本里，在首次绘制前就打上 class，避免标题闪一下再消失。 -->
+<script>try{if(window.self!==window.top)document.documentElement.classList.add('embedded');}catch(e){document.documentElement.classList.add('embedded');}</script>
+<style>
+html.embedded header h1 { display: none; }
+/* h1 一藏，space-between 只剩一个子元素，按钮会整排甩到左边。 */
+html.embedded header { justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💶 账单 · 支出</h1>
+  <div class="header-right">
+    <span id="save-state" style="font-size:11px;color:var(--text-dim);"></span>
+    <button class="btn btn-sm" onclick="openVocab()">🏷 管理分类</button>
+    <button class="btn btn-sm" onclick="openBackup()">💾 数据</button>
+    <button class="btn btn-sm btn-primary" onclick="openImport()">📥 导入对账单</button>
+  </div>
+</header>
+
+<div id="page-nav">
+  <button class="ptab active" data-pane="review">📝 逐条整理</button>
+  <button class="ptab" data-pane="summary">📊 汇总与趋势</button>
+</div>
+
+<!-- ══════════ 逐条整理 ══════════ -->
+<div class="pane active" id="pane-review">
+
+  <div class="panel">
+    <h3>选择月份 <span class="sub" id="review-month-sub"></span></h3>
+    <div class="months" id="review-months"></div>
+  </div>
+
+  <div class="panel">
+    <h3>本月进度 <span class="sub" id="prog-text"></span>
+      <span style="flex:1"></span>
+      <button class="btn btn-sm btn-success" id="btn-close-month" onclick="closeMonth()">✓ 标记本月已整理完</button>
+    </h3>
+    <div class="prog"><i id="prog-bar" style="width:0%"></i></div>
+    <div class="stat-grid" style="margin-top:11px" id="review-stats"></div>
+  </div>
+
+  <div class="panel">
+    <h3>筛选</h3>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:5px">状态</div>
+        <div class="chips" id="f-status"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:5px">性质</div>
+        <div class="chips" id="f-kind"></div>
+      </div>
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:5px">搜索商家 / 摘要</div>
+        <input type="text" id="f-search" placeholder="输入关键词…" style="width:100%" oninput="renderReview()">
+      </div>
+    </div>
+    <div class="hint" style="margin-top:9px">
+      快捷键：<kbd>J</kbd>/<kbd>K</kbd> 上下选条 · <kbd>Enter</kbd> 展开/收起 · <kbd>Space</kbd> 确认当前条 · <kbd>E</kbd> 排除/恢复 · <kbd>Esc</kbd> 收起
+    </div>
+  </div>
+
+  <div id="bulk-slot"></div>
+  <div class="tx-list" id="tx-list"></div>
+</div>
+
+<!-- ══════════ 汇总与趋势 ══════════ -->
+<div class="pane" id="pane-summary">
+
+  <div class="panel">
+    <h3>选择要对比的月份
+      <span class="sub" id="sum-scope-note"></span>
+      <span style="flex:1"></span>
+      <button class="btn btn-sm" onclick="pickMonths('all')">全选</button>
+      <button class="btn btn-sm" onclick="pickMonths('done')">只看已整理</button>
+    </h3>
+    <div class="months" id="sum-months"></div>
+  </div>
+
+  <!-- 页面级总开关：一处控制所有「分布类」图表是否含固定支出。
+       原先月度构成 / 商家排行 / 日历各有一个开关、类别占比没有 —— 同一个诉求
+       在四个地方各说各的，既要点三次，又必然漏掉第四个。 -->
+  <div class="panel" style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div class="chips" id="fx-mode">
+      <div class="chip" data-m="var">只看可变支出</div>
+      <div class="chip" data-m="all">全部支出</div>
+    </div>
+    <div class="hint" id="fx-note" style="flex:1;min-width:200px"></div>
+  </div>
+
+  <div class="stat-grid" id="sum-stats" style="margin-top:12px"></div>
+
+  <div class="panel" style="margin-top:12px">
+    <h3>月度支出构成 <span class="sub">按大类堆叠 · 点图例可隐藏某类 · 虚线为近 3 月移动均值</span></h3>
+    <div class="chart" id="chart-stack"></div>
+    <div class="legend" id="chart-legend"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="two-col">
+    <div class="panel">
+      <h3>类别占比 <span class="sub" id="donut-note"></span></h3>
+      <div class="donut-row">
+        <div style="position:relative">
+          <div class="donut" id="donut"></div>
+          <div class="donut-mid"><div class="v" id="donut-total"></div><div class="l" id="donut-label">总支出</div></div>
+        </div>
+        <table class="rank" id="cat-rank"></table>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>固定 vs 可变 <span class="sub">这张图是总开关的依据，始终显示两者全貌</span></h3>
+      <div id="fixvar"></div>
+      <h3 style="margin-top:16px">自定义标签 <span class="sub">跨类别的一件事花了多少</span></h3>
+      <table class="rank" id="tag-rank"></table>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px" id="two-col2">
+    <div class="panel">
+      <h3>商家排行 <span class="sub" id="merchant-sub"></span></h3>
+      <table class="rank" id="merchant-rank"></table>
+    </div>
+    <div class="panel">
+      <h3>消费日历 <span class="sub" id="heat-note"></span></h3>
+      <div id="heat-wrap"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px">
+    <h3>非消费流水 <span class="sub">不计入支出，但钱的全貌不该丢</span></h3>
+    <table class="rank" id="nonconsume"></table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="modal-slot"></div>
+
+<script src="/legacy/common.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   数据全部走 /api/finance/*，持久化在 Mongo。
+
+   前端只保留**视图状态**（当前月份、筛选器、展开哪一条、图表口径）——
+   这些刷新后重置无所谓，落库反而碍事。凡是"用户的劳动成果"（分类、标签、
+   备注、确认状态、封账）一律立刻落库。
+
+   ## 为什么保留一份内存副本 ALL
+
+   逐条确认时每秒可能按好几次键，每次都重新拉全量会让界面跟不上手。
+   做法：本地先改（乐观更新）→ 后台 PATCH → 用服务端返回的权威结果覆写那一条。
+   失败则回滚并提示，不会出现"看着改了其实没存上"。
+   ═══════════════════════════════════════════════════════════════════ */
+
+const API = '/api/finance';
+
+/* 大类配色。顺序即图例与堆叠顺序 —— 固定住，换月份时颜色不能跳。
+   服务端 fin_categories 里也存了 color，这里是兜底（用户新加的类别没配色）。 */
+const CAT_COLOR = {
+  '餐饮':'#7fa8d8', '住房':'#a98fd0', '通信数码':'#5fb3a3', '交通':'#d9a441',
+  '健康医疗':'#e0707f', '购物':'#e58fa6', '娱乐休闲':'#6cc2c6', '个人护理':'#9cc698',
+  '教育职业':'#dd9a6b', '金融税费':'#9a938a', '未分类':'#5a534c',
+  '非消费':'#6e655d', '收入':'#6fbf8a',
+  /* 与 theme.css 同一套暖色（保色相、按暗底重算明度）。「未分类」「非消费」
+     对比度刻意低于其余（2.1 / 2.7，其余 ≥5）：它们不是一个值得看的类别，
+     拉亮会和真实支出抢视线。 */
+};
+// 用户新增的大类没有出厂配色，按名字散列到一组备用色 —— 不能都给灰色，
+// 否则堆叠图上几个新类别糊成一片分不开
+const SPARE = ['#7ee787','#ffa657','#79c0ff','#d2a8ff','#ff7b72','#f2cc60','#a5d6ff'];
+function catColor(c) {
+  if (CAT_COLOR[c]) return CAT_COLOR[c];
+  const v = vocabColor[c];
+  if (v) return v;
+  let h = 0;
+  for (const ch of String(c)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return SPARE[h % SPARE.length];
+}
+
+const KINDS = {
+  expense:  {label:'支出',   cls:''},
+  income:   {label:'收入',   cls:'income'},
+  transfer: {label:'非消费', cls:'transfer'},
+  refund:   {label:'退款',   cls:'refund'},
+};
+
+/* ── 服务端数据（启动时由 /bootstrap 一次取齐）── */
+let ALL = [];                 // 全部交易，权威副本
+let MONTHS = [];
+let vocab = {};               // {大类: [二级…]}
+let vocabColor = {};
+let rules = {};
+let done = {};                // {月份: true} 封账状态
+let statements = [];
+
+/* ── 视图状态（不落库）── */
+let reviewMonth = null;
+let sumMonths = new Set();
+let hiddenCats = new Set();
+let filterStatus = 'todo';
+let filterKind = 'all';
+let selIdx = -1;
+let openId = null;
+
+/* ── HTTP ── */
+function hdr() {
+  return {'Content-Type': 'application/json', 'x-token': getToken()};
+}
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, Object.assign({headers: hdr()}, opts));
+  if (!r.ok) {
+    let msg = 'HTTP ' + r.status;
+    if (r.status === 401) msg += '（请在主面板右上角设置 admin token）';
+    try { const j = await r.json(); if (j.detail) msg = j.detail; } catch (e) {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+let saveTimer = null;
+function flashSaved(text, color) {
+  const el = document.getElementById('save-state');
+  el.textContent = text || '● 已保存';
+  el.style.color = color || 'var(--green)';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = ''; }, 1600);
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = n => (n < 0 ? '-' : '') + '€' + Math.abs(n).toLocaleString('de-DE',
+  {minimumFractionDigits:2, maximumFractionDigits:2});
+const eur0 = n => '€' + Math.round(Math.abs(n)).toLocaleString('de-DE');
+const pct = n => (n*100).toFixed(1) + '%';
+
+/* ── 数据访问 ──
+   服务端返回的就是合并后的完整交易，前端不再有「原始 + 编辑」两层。
+   `view()` 保留为恒等函数，是为了让下面几百行渲染代码原封不动 —— 它们在
+   纯前端阶段已被逐项验证过，没必要为了改数据源把它们重写一遍。 */
+const view = t => t;
+const txById = id => ALL.find(t => t.id === id);
+function vlist(month) {
+  return ALL.filter(t => !month || t.month === month);
+}
+
+/* 乐观更新：先改内存让界面立刻响应，再落库，最后用服务端的权威结果覆写。
+   失败回滚 —— 绝不能出现「看着改了其实没存上」。 */
+async function patch(id, obj, learnRule) {
+  const i = ALL.findIndex(t => t.id === id);
+  if (i < 0) return;
+  const before = ALL[i];
+  ALL[i] = Object.assign({}, before, obj);
+  try {
+    const res = await api('/transactions/' + encodeURIComponent(id), {
+      method: 'PATCH',
+      body: JSON.stringify({patch: obj, learn_rule: !!learnRule}),
+    });
+    ALL[i] = res.tx;
+    if (res.applied) {
+      // 规则带动了其他条目，本地副本已经过期 —— 重新拉一次交易
+      await reloadTx();
+      showToast(`已同步 ${res.applied} 笔同商家交易`, 'success');
+    }
+    flashSaved();
+  } catch (e) {
+    ALL[i] = before;                       // 回滚
+    renderReview(); renderSummary();
+    showToast('保存失败：' + e.message, 'error');
+    flashSaved('● 未保存', 'var(--red)');
+  }
+}
+
+async function reloadTx() {
+  const d = await api('/transactions');
+  ALL = d.transactions;
+  MONTHS = [...new Set(ALL.map(t => t.month))].sort();
+}
+
+function applyVocab(cats) {
+  vocab = {};
+  vocabColor = {};
+  cats.forEach(c => { vocab[c.l1] = c.subs || []; if (c.color) vocabColor[c.l1] = c.color; });
+}
+
+/* ══════════ 逐条整理 ══════════ */
+
+function monthStats(month) {
+  const list = vlist(month);
+  const eff = list.filter(t => !t.excluded);
+  const sum = k => eff.filter(t => t.kind === k).reduce((a,b) => a + Math.abs(b.amount), 0);
+  return {
+    total: list.length,
+    reviewed: list.filter(t => t.reviewed).length,
+    expense: sum('expense') - sum('refund'),
+    income: sum('income'),
+    transfer: sum('transfer'),
+  };
+}
+
+function renderMonthChips(elId, mode) {
+  const el = document.getElementById(elId);
+  el.innerHTML = MONTHS.map(m => {
+    const s = monthStats(m);
+    const on = mode === 'review' ? (m === reviewMonth) : sumMonths.has(m);
+    const ok = done[m];
+    return `<div class="mchip ${on?'active':''}" data-m="${m}">
+      <span>${m.slice(5)}月</span>
+      <span class="mb">${eur0(s.expense)}</span>
+      ${ok ? '<span class="done">✓</span>' : `<span class="mb" style="opacity:.55">${s.reviewed}/${s.total}</span>`}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.mchip').forEach(c => c.onclick = () => {
+    const m = c.dataset.m;
+    if (mode === 'review') { reviewMonth = m; selIdx = -1; openId = null; renderReview(); }
+    else { sumMonths.has(m) ? sumMonths.delete(m) : sumMonths.add(m); renderSummary(); }
+  });
+}
+
+function filtered() {
+  const q = (document.getElementById('f-search').value || '').trim().toLowerCase();
+  return vlist(reviewMonth).filter(t => {
+    if (filterStatus === 'todo' && t.reviewed) return false;
+    if (filterStatus === 'done' && !t.reviewed) return false;
+    if (filterKind !== 'all' && t.kind !== filterKind) return false;
+    if (q && !(`${t.merchant} ${t.raw_desc} ${t.memo} ${t.l1} ${t.l2} ${(t.tags||[]).join(' ')}`
+        .toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b) => a.date.localeCompare(b.date) || a.seq - b.seq);
+}
+
+function renderReview() {
+  if (!reviewMonth) reviewMonth = MONTHS[0];
+  renderMonthChips('review-months', 'review');
+  const s = monthStats(reviewMonth);
+  document.getElementById('review-month-sub').textContent =
+    `${reviewMonth} · 共 ${s.total} 笔`;
+  const p = s.total ? s.reviewed / s.total * 100 : 0;
+  document.getElementById('prog-bar').style.width = p + '%';
+  document.getElementById('prog-text').textContent =
+    `${s.reviewed} / ${s.total} 已确认（${p.toFixed(0)}%）` + (done[reviewMonth] ? ' · 已封账' : '');
+  const btn = document.getElementById('btn-close-month');
+  btn.textContent = done[reviewMonth] ? '↩ 取消封账' : '✓ 标记本月已整理完';
+  btn.className = 'btn btn-sm ' + (done[reviewMonth] ? '' : 'btn-success');
+
+  document.getElementById('review-stats').innerHTML = `
+    ${scard('本月净支出', eur(s.expense), '已扣退款、已排除非消费')}
+    ${scard('收入', eur(s.income), '')}
+    ${scard('非消费流水', eur(s.transfer), '划转 / 往来 / 取现')}
+    ${scard('待确认', String(s.total - s.reviewed), s.total - s.reviewed ? '' : '全部确认完毕 🎉')}`;
+
+  // 筛选器
+  const list = vlist(reviewMonth);
+  const cnt = {all:list.length, expense:0, income:0, transfer:0, refund:0};
+  list.forEach(t => cnt[t.kind]++);
+  document.getElementById('f-status').innerHTML = [
+    ['todo','待确认', list.filter(t=>!t.reviewed).length],
+    ['done','已确认', list.filter(t=>t.reviewed).length],
+    ['all','全部', list.length],
+  ].map(([k,l,n]) => `<div class="chip ${filterStatus===k?'active':''}" data-s="${k}">${l}<span class="cnt">${n}</span></div>`).join('');
+  document.getElementById('f-status').querySelectorAll('.chip').forEach(c =>
+    c.onclick = () => { filterStatus = c.dataset.s; selIdx = -1; renderReview(); });
+  document.getElementById('f-kind').innerHTML =
+    [['all','全部',cnt.all]].concat(Object.entries(KINDS).map(([k,v]) => [k, v.label, cnt[k]]))
+    .map(([k,l,n]) => `<div class="chip ${filterKind===k?'active':''}" data-k="${k}">${l}<span class="cnt">${n}</span></div>`).join('');
+  document.getElementById('f-kind').querySelectorAll('.chip').forEach(c =>
+    c.onclick = () => { filterKind = c.dataset.k; selIdx = -1; renderReview(); });
+
+  const rows = filtered();
+  const el = document.getElementById('tx-list');
+  if (!rows.length) { el.innerHTML = '<div class="empty">没有符合条件的交易</div>'; return; }
+  el.innerHTML = rows.map((t,i) => txRow(t, i)).join('');
+  bindRows(rows);
+}
+
+function scard(lbl, val, dlt, cls) {
+  return `<div class="scard"><div class="lbl">${esc(lbl)}</div>
+    <div class="val">${esc(val)}</div>
+    ${dlt ? `<div class="dlt ${cls||''}">${dlt}</div>` : ''}</div>`;
+}
+
+function txRow(t, i) {
+  const open = t.id === openId;
+  const cls = [t.reviewed ? 'reviewed' : '', t.excluded ? 'excluded' : '',
+               open ? 'open' : '', i === selIdx ? 'sel' : ''].join(' ');
+  const kb = t.kind !== 'expense' ? `<span class="kbadge ${KINDS[t.kind].cls}">${KINDS[t.kind].label}</span>` : '';
+  const fb = t.fixed ? '<span class="kbadge fixed">固定</span>' : '';
+  const tags = (t.tags||[]).map(x => `<span class="tagpill">#${esc(x)}</span>`).join('');
+  return `<div class="tx ${cls}" data-id="${t.id}" data-i="${i}">
+    <div class="tx-head js-toggle">
+      <div class="tx-date">${t.date.slice(5)}</div>
+      <div class="tx-main">
+        <div class="tx-merchant">${esc(t.merchant)} ${kb} ${fb} ${tags}</div>
+        <div class="tx-raw">${esc(t.raw_desc)}${t.memo ? ' · ' + esc(t.memo.slice(0,60)) : ''}</div>
+      </div>
+      <div class="cat-cell">
+        <span class="cbadge" style="background:${catColor(t.l1)}22;color:${catColor(t.l1)};border-color:${catColor(t.l1)}55">${esc(t.l1)}</span>
+        ${t.l2 ? `<span class="cbadge l2">${esc(t.l2)}</span>` : ''}
+      </div>
+      <div class="tx-amt ${t.amount > 0 ? 'pos' : ''}">${eur(t.amount)}</div>
+      <div class="tx-tick">${t.reviewed ? '✓' : '○'}</div>
+    </div>
+    <div class="tx-edit">${open ? txEdit(t) : ''}</div>
+  </div>`;
+}
+
+function txEdit(t) {
+  const l1s = Object.keys(vocab);
+  const l2s = vocab[t.l1] || [];
+  const sameMerchant = vlist(null).filter(x => x.merchant === t.merchant).length;
+  return `
+  <div class="memo-box">
+    <b>原始描述</b> ${esc(t.raw_desc)}<br>
+    <b>渠道</b> ${esc(t.channel || '—')}${t.bank_cat ? ` · 银行类别 <b>${esc(t.bank_cat)}</b>` : ''}
+    ${t.counter_iban ? `<br><b>对方 IBAN</b> ${esc(t.counter_iban)}` : ''}
+    ${t.memo ? `<br><b>用途</b> ${esc(t.memo)}` : ''}
+    <br><b>记账日</b> ${t.date}${t.value_date && t.value_date !== t.date ? ` · 起息日 ${t.value_date}` : ''}
+    ${t.section === 'space' ? '<br><b>账本</b> Savings 储蓄 Space（非主账户）' : ''}
+  </div>
+  <div class="erow">
+    <div class="fld grow"><label>商家（归一后的名字，规则按它沉淀）</label>
+      <input type="text" id="e-merchant" value="${esc(t.merchant)}"></div>
+    <div class="fld"><label>金额</label>
+      <input type="number" step="0.01" id="e-amount" value="${t.amount}" style="width:110px"></div>
+    <div class="fld"><label>日期</label>
+      <input type="date" id="e-date" value="${t.date}" style="width:140px"></div>
+  </div>
+  <div class="erow">
+    <div class="fld"><label>性质</label>
+      <select id="e-kind" style="width:100px">
+        ${Object.entries(KINDS).map(([k,v]) => `<option value="${k}" ${t.kind===k?'selected':''}>${v.label}</option>`).join('')}
+      </select></div>
+    <div class="fld"><label>大类</label>
+      <select id="e-l1" style="width:120px">
+        ${l1s.map(c => `<option value="${esc(c)}" ${t.l1===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select></div>
+    <div class="fld"><label>二级分类</label>
+      <select id="e-l2" style="width:130px">
+        <option value="">（不细分）</option>
+        ${l2s.map(c => `<option value="${esc(c)}" ${t.l2===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select></div>
+    <div class="fld"><label>&nbsp;</label>
+      <label class="chip ${t.fixed?'active':''}" style="padding:5px 10px" id="e-fixed-chip">
+        <input type="checkbox" id="e-fixed" ${t.fixed?'checked':''} style="display:none">固定支出</label></div>
+    <div class="fld"><label>&nbsp;</label>
+      <label class="chip ${t.excluded?'active':''}" style="padding:5px 10px" id="e-excl-chip">
+        <input type="checkbox" id="e-excluded" ${t.excluded?'checked':''} style="display:none">不计入统计</label></div>
+  </div>
+  <div class="erow">
+    <div class="fld grow"><label>自定义标签（回车添加，点标签删除）</label>
+      <div class="tagedit" id="e-tags">
+        ${(t.tags||[]).map(x => `<span class="tagpill" data-t="${esc(x)}">#${esc(x)} ×</span>`).join('')}
+        <input type="text" id="e-tag-input" placeholder="+ 标签" style="width:110px">
+      </div></div>
+    <div class="fld grow"><label>备注</label>
+      <input type="text" id="e-note" value="${esc(t.note||'')}" placeholder="为什么花这笔钱…"></div>
+  </div>
+  <div class="erow" style="margin-bottom:0">
+    <label class="chip" style="padding:5px 10px" id="e-rule-chip">
+      <input type="checkbox" id="e-rule" checked style="display:none">
+      以后「${esc(t.merchant)}」都这样归类${sameMerchant > 1 ? `（另有 ${sameMerchant-1} 笔）` : ''}</label>
+    <span style="flex:1"></span>
+    <button class="btn btn-sm" onclick="closeRow()">取消</button>
+    <button class="btn btn-sm btn-primary" onclick="applyRow('${t.id}', false)">保存</button>
+    <button class="btn btn-sm btn-success" onclick="applyRow('${t.id}', true)">✓ 保存并确认</button>
+  </div>`;
+}
+
+function bindRows(rows) {
+  document.querySelectorAll('.tx').forEach(el => {
+    el.querySelector('.js-toggle').onclick = () => {
+      selIdx = +el.dataset.i;
+      openId = (openId === el.dataset.id) ? null : el.dataset.id;
+      renderReview();
+    };
+  });
+  if (!openId) return;
+  // 大类变了要重建二级下拉 —— 否则会留下上一个大类的二级选项
+  const l1 = document.getElementById('e-l1');
+  if (l1) l1.onchange = () => {
+    const sel = document.getElementById('e-l2');
+    sel.innerHTML = '<option value="">（不细分）</option>' +
+      (vocab[l1.value]||[]).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  };
+  ['e-fixed','e-excluded','e-rule'].forEach(id => {
+    const cb = document.getElementById(id);
+    if (!cb) return;
+    const chip = cb.parentElement;
+    chip.onclick = ev => { ev.preventDefault(); cb.checked = !cb.checked; chip.classList.toggle('active', cb.checked); };
+    chip.classList.toggle('active', cb.checked);
+  });
+  const ti = document.getElementById('e-tag-input');
+  if (ti) {
+    ti.onkeydown = ev => {
+      if (ev.key !== 'Enter') return;
+      ev.preventDefault();
+      const v = ti.value.trim().replace(/^#/, '');
+      if (!v) return;
+      const box = document.getElementById('e-tags');
+      if (![...box.querySelectorAll('.tagpill')].some(p => p.dataset.t === v)) {
+        const sp = document.createElement('span');
+        sp.className = 'tagpill'; sp.dataset.t = v; sp.textContent = '#' + v + ' ×';
+        sp.onclick = () => sp.remove();
+        box.insertBefore(sp, ti);
+      }
+      ti.value = '';
+    };
+    document.querySelectorAll('#e-tags .tagpill').forEach(p => p.onclick = () => p.remove());
+  }
+}
+
+async function applyRow(id, confirm) {
+  const g = i => document.getElementById(i);
+  const v = {
+    merchant: g('e-merchant').value.trim(),
+    amount: parseFloat(g('e-amount').value),
+    date: g('e-date').value,
+    kind: g('e-kind').value,
+    l1: g('e-l1').value,
+    l2: g('e-l2').value,
+    fixed: g('e-fixed').checked,
+    excluded: g('e-excluded').checked,
+    note: g('e-note').value.trim(),
+    tags: [...document.querySelectorAll('#e-tags .tagpill')].map(p => p.dataset.t),
+  };
+  if (confirm) v.reviewed = true;
+  const learn = g('e-rule').checked;
+
+  // 先移动光标再等网络：确认后的跳转是手感的一部分，不该卡在请求上。
+  // 服务端负责把规则套用到同商家未确认的条目（它有 auto/reviewed 的权威值）。
+  // **顺序要紧**：patch() 的内存更新是同步的（网络在它内部 await），所以先把它
+  // 发出去，advanceAfterConfirm 才能在「这条已消失」的列表上算光标；反过来先移
+  // 光标的话，紧接着那次 renderReview 用的是旧列表，高亮会在整个网络往返期间
+  // 停在错的行上。
+  const p = patch(id, v, learn);
+  if (confirm) advanceAfterConfirm(id);
+  renderReview();
+  await p;
+  renderReview();
+  renderSummary();
+}
+/* 确认一条后落到下一条待办。
+   **必须按 id 定位，不能按 selIdx 加一。** selIdx 是「筛选后列表」的下标，而默认
+   筛选是「待确认」—— 刚确认的那条在 patch() 之后已经从列表里消失，它后面的行
+   整体前移一位。此时 selIdx 已经天然指向下一条，再 `i > selIdx` 找一次就跳过了
+   一整条（确认第 1 条后光标落到原第 3 条）。
+   改成先在新列表里找刚确认的那条：
+   - 还在（筛选是「全部」/「已确认」）→ 取它后面第一条待办
+   - 已消失（筛选是「待确认」）→ 原地的那条就是下一条，不要再往后挪
+
+   **⚠️ 两条调用路径的时序不同，不能只按「它还在不在列表里」判断。**
+   未展开按空格：patch() 的内存更新是同步的，走到这里时这条已经消失。
+   展开按空格（applyRow）：为了手感是「先移光标再 await patch」，走到这里时
+   reviewed 还没落到内存 —— 这条**仍在**列表里，但马上就会消失。按旧下标
+   算出来的 selIdx 于是整体偏一位，表现为「确认完又往下跳了一条」。
+   故判据是「当前筛选会不会让它消失」(filterStatus === 'todo')，而不是
+   「它现在还在不在」：会消失就先把它从候选里剔掉，算出的下标才是消失之后的。 */
+function advanceAfterConfirm(id) {
+  let rows = filtered();
+  openId = null;
+  const at = rows.findIndex(t => t.id === id);
+  let gone = at < 0;                       // 已经从列表里消失
+  let from;
+  if (at < 0) from = Math.max(selIdx, 0);
+  else if (filterStatus === 'todo') {      // 还在，但这次确认会让它消失
+    rows = rows.slice();
+    rows.splice(at, 1);
+    from = at;                             // 剔除后原位置上的就是下一条
+    gone = true;
+  } else from = at + 1;
+  let nxt = rows.slice(from).find(t => !t.reviewed);
+  if (!nxt && gone) nxt = rows[from];      // 后面没有待办了，也别把光标丢在空处
+  if (nxt) { selIdx = rows.indexOf(nxt); openId = nxt.id; }
+  else { selIdx = Math.min(from, rows.length - 1); }
+}
+
+function closeRow() { openId = null; renderReview(); }
+
+async function closeMonth() {
+  const s = monthStats(reviewMonth);
+  const next = !done[reviewMonth];
+  if (next && s.reviewed < s.total) {
+    if (!window.confirm(`还有 ${s.total - s.reviewed} 笔没确认，确定要封账吗？`)) return;
+  }
+  const m = reviewMonth;
+  try {
+    const res = await api('/months/' + m + '/closed', {
+      method: 'POST', body: JSON.stringify({closed: next}),
+    });
+    done = {};
+    (res.closed || []).forEach(x => done[x] = true);
+    if (next) sumMonths.add(m);
+    flashSaved();
+  } catch (e) {
+    showToast('封账失败：' + e.message, 'error');
+  }
+  renderReview(); renderSummary();
+}
+
+/* ── 键盘操作 ── */
+document.addEventListener('keydown', ev => {
+  if (document.getElementById('pane-review').className.indexOf('active') < 0) return;
+  const tag = (ev.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+    if (ev.key === 'Escape') ev.target.blur();
+    return;
+  }
+  if (document.querySelector('.modal-mask')) return;
+  const rows = filtered();
+  if (ev.key === 'j' || ev.key === 'ArrowDown') { selIdx = Math.min(selIdx+1, rows.length-1); openId && (openId = rows[selIdx].id); renderReview(); scrollSel(); ev.preventDefault(); }
+  else if (ev.key === 'k' || ev.key === 'ArrowUp') { selIdx = Math.max(selIdx-1, 0); openId && (openId = rows[selIdx].id); renderReview(); scrollSel(); ev.preventDefault(); }
+  else if (ev.key === 'Enter' && rows[selIdx]) { openId = openId === rows[selIdx].id ? null : rows[selIdx].id; renderReview(); scrollSel(); ev.preventDefault(); }
+  else if (ev.key === ' ' && rows[selIdx]) {
+    const t = rows[selIdx];
+    if (openId === t.id) applyRow(t.id, true);
+    else {
+      // 未展开时的快速确认。同样不能只 renderReview —— 在「待确认」筛选下这条
+      // 会立刻从列表消失，光标必须重新落位，否则下一次按键作用在错的行上。
+      // patch 是乐观更新，内存已即时变更，所以这里不必 await（连按时不卡手）。
+      const nowReviewed = !t.reviewed;
+      patch(t.id, {reviewed: nowReviewed}).then(() => { renderReview(); renderSummary(); });
+      if (nowReviewed) advanceAfterConfirm(t.id);
+      renderReview(); renderSummary(); scrollSel();
+    }
+    ev.preventDefault();
+  }
+  else if (ev.key === 'e' && rows[selIdx]) {
+    patch(rows[selIdx].id, {excluded: !rows[selIdx].excluded}).then(renderSummary);
+    renderReview(); renderSummary();
+  }
+  else if (ev.key === 'Escape') { openId = null; renderReview(); }
+});
+function scrollSel() {
+  const el = document.querySelector('.tx.sel');
+  if (el) el.scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+
+/* ══════════ 汇总与趋势 ══════════ */
+
+function sumData() {
+  const ms = [...sumMonths].sort();
+  const list = ALL.map(view).filter(t => sumMonths.has(t.month) && !t.excluded);
+  return {months: ms, list};
+}
+
+function pickMonths(mode) {
+  sumMonths = new Set(mode === 'all' ? MONTHS : MONTHS.filter(m => done[m]));
+  renderSummary();
+}
+
+function renderSummary() {
+  renderMonthChips('sum-months', 'sum');
+  const {months, list} = sumData();
+  const note = document.getElementById('sum-scope-note');
+  const halfDone = months.filter(m => !done[m]);
+  note.innerHTML = months.length
+    ? `已选 ${months.length} 个月` + (halfDone.length
+        ? ` · <span style="color:var(--yellow)">其中 ${halfDone.join('、')} 尚未封账，数字会随整理进度变化</span>` : ' · 全部已封账')
+    : '';
+  if (!months.length) {
+    document.getElementById('sum-stats').innerHTML =
+      '<div class="empty" style="grid-column:1/-1">先在上面勾选月份</div>';
+    ['chart-stack','cat-rank','merchant-rank','tag-rank','fixvar','nonconsume','heat-wrap','chart-legend','fx-note']
+      .forEach(i => document.getElementById(i).innerHTML = '');
+    document.getElementById('donut').style.background = 'none';
+    document.getElementById('donut-total').textContent = '';
+    return;
+  }
+
+  const exp = list.filter(t => t.kind === 'expense');
+  const ref = list.filter(t => t.kind === 'refund');
+  const trf = list.filter(t => t.kind === 'transfer');
+  const totalExp = sumAbs(exp) - sumAbs(ref);
+  const n = months.length;
+  // 固定支出也要冲减自己的退款（3 月 Spotify 退了 12,99）。只减支出不减退款的话，
+  // varExp = totalExp − fixedExp 会把这 12,99 算到可变头上 —— 统计卡显示 3277,12
+  // 而环形图算出 3290,11，同一个「可变支出」在同一页出现两个数。
+  const fixedExp = sumAbs(exp.filter(t => t.fixed)) - sumAbs(ref.filter(t => t.fixed));
+
+  // ── 页面级口径开关 ──
+  // 分布类图表（构成 / 占比 / 排行 / 日历）全部服从它；
+  // 「固定 vs 可变」是这个开关本身的依据，故不服从，永远显示全貌。
+  const onlyVar = fxOnlyVar();
+  const vExp = onlyVar ? exp.filter(t => !t.fixed) : exp;
+  const vRef = onlyVar ? ref.filter(t => !t.fixed) : ref;
+  const scopedTotal = sumAbs(vExp) - sumAbs(vRef);
+  const fixedNames = [...new Set(exp.filter(t => t.fixed).map(t => t.merchant))];
+  document.getElementById('fx-note').innerHTML = onlyVar
+    ? `已滤掉房租、物业、宽带、月票等固定支出（${fixedNames.length} 家商家、共 ${eur(fixedExp)}）——`
+      + ` 下方构成、占比、商家排行、日历均为 <b>${eur(scopedTotal)}</b> 的口径。`
+      + ` 固定支出的全貌见右侧「固定 vs 可变」。`
+    : `含全部支出。固定项占 <b>${totalExp?pct(fixedExp/totalExp):'—'}</b>，`
+      + ` 会把其余类别在图表里压扁 —— 想看清消费习惯建议切到「只看可变支出」。`;
+  document.querySelectorAll('#fx-mode .chip').forEach(c =>
+    c.classList.toggle('active', (c.dataset.m === 'var') === onlyVar));
+
+  // 收入来源单一且稳定，结余是它的镜像 —— 两张卡都不承载决策信息，占着最显眼
+  // 的位置反而挤掉了真正要看的东西。整页只回答一个问题：钱花到哪了、是多是少。
+  const varExp = totalExp - fixedExp;
+  const perMonth = months.map(m => {
+    const l = ALL.map(view).filter(t => t.month === m && !t.excluded);
+    return sumAbs(l.filter(t => t.kind==='expense')) - sumAbs(l.filter(t => t.kind==='refund'));
+  });
+  const hi = Math.max(...perMonth), lo = Math.min(...perMonth);
+  const hiM = months[perMonth.indexOf(hi)], loM = months[perMonth.indexOf(lo)];
+  // 可变支出的月度波动才是「这个月是不是花超了」的判据 —— 总支出被固定项压得太平
+  const varPer = months.map(m => {
+    const l = ALL.map(view).filter(t => t.month === m && !t.excluded && !t.fixed);
+    return sumAbs(l.filter(t => t.kind==='expense')) - sumAbs(l.filter(t => t.kind==='refund'));
+  });
+  const vAvg = varPer.reduce((a,b)=>a+b,0) / n;
+  const vLast = varPer[n-1], vDelta = vAvg ? (vLast - vAvg) / vAvg : 0;
+
+  document.getElementById('sum-stats').innerHTML = `
+    ${scard('总支出', eur(totalExp), `${n} 个月 · 月均 ${eur(totalExp/n)}`)}
+    ${scard('可变支出', eur(varExp), `月均 ${eur(varExp/n)} · 占 ${totalExp?pct(varExp/totalExp):'—'} —— 能优化的部分`)}
+    ${scard('固定支出', eur(fixedExp), `月均 ${eur(fixedExp/n)} · 占 ${totalExp?pct(fixedExp/totalExp):'—'}`)}
+    ${n > 1 ? scard(`最新月可变（${months[n-1].slice(5)}月）`, eur(vLast),
+        `较 ${n} 月均值 ${vDelta>=0?'↑':'↓'}${Math.abs(vDelta*100).toFixed(0)}%`,
+        vDelta > 0 ? 'up' : 'down')
+      : scard('笔数', String(exp.length), `日均 ${(exp.length/30).toFixed(1)} 笔`)}
+    ${n > 1 ? scard('最贵 / 最省', `${hiM.slice(5)}月 / ${loM.slice(5)}月`,
+        `${eur(hi)} ↔ ${eur(lo)} · 相差 ${eur(hi-lo)}`) : ''}
+    ${scard('笔均', eur(exp.length ? totalExp/exp.length : 0), `${exp.length} 笔 · 日均 ${(exp.length/(n*30)).toFixed(1)} 笔`)}`;
+
+  renderStack(months);
+  renderDonut(vExp, vRef, scopedTotal);
+  renderCatRank(months, scopedTotal);
+  renderFixVar(months);
+  renderMerchants(vExp, vRef, fixedExp, fixedNames);
+  renderTags(list);
+  renderHeat(months, vExp, vRef);
+  renderNonConsume(trf);
+}
+const sumAbs = a => a.reduce((s,t) => s + Math.abs(t.amount), 0);
+
+/* 页面口径：是否只看可变支出。默认 true —— 固定支出占 73%，默认含它的话
+   每张分布图第一眼都是"房租最大"，而那是一条你无法据以行动的信息。 */
+function fxOnlyVar() { return window._fxOnlyVar !== false; }
+
+/* 月度堆叠柱 + 3 月移动均线。
+   「仅可变支出」不是装饰 —— 房租占了 67%，且每月雷打不动，混在一起时
+   其余类别全被压成几个像素的细条，柱高的变化也几乎全来自房租的零头。
+   滤掉固定支出后，纵轴量程从 €2.4k 缩到 €600，真正在波动的部分才看得见。 */
+function renderStack(months) {
+  const keep = t => !fxOnlyVar() || !t.fixed;
+  const cats = [...new Set(ALL.map(view).filter(t => t.kind === 'expense' && keep(t)).map(t => t.l1))]
+    .sort((a,b) => Object.keys(CAT_COLOR).indexOf(a) - Object.keys(CAT_COLOR).indexOf(b));
+  const byMonth = months.map(m => {
+    const l = ALL.map(view).filter(t => t.month === m && !t.excluded && keep(t));
+    const o = {month:m, parts:{}, total:0};
+    cats.forEach(c => {
+      if (hiddenCats.has(c)) return;
+      const v = sumAbs(l.filter(t => t.kind==='expense' && t.l1===c))
+              - sumAbs(l.filter(t => t.kind==='refund' && t.l1===c));
+      if (v > 0) { o.parts[c] = v; o.total += v; }
+    });
+    return o;
+  });
+  const max = Math.max(...byMonth.map(d => d.total), 1);
+  const H = 190;
+  // 移动均值放在柱内当参考线：柱子本身就是坐标系，另开一张折线图反而更难比
+  const mav = byMonth.map((d,i) => {
+    const w = byMonth.slice(Math.max(0,i-2), i+1);
+    return w.reduce((s,x) => s + x.total, 0) / w.length;
+  });
+  document.getElementById('chart-stack').innerHTML = byMonth.map((d,i) => {
+    const h = d.total / max * H;
+    const segs = cats.filter(c => d.parts[c]).map(c =>
+      `<div style="height:${d.parts[c]/max*H}px;background:${catColor(c)}" title="${esc(c)} ${eur(d.parts[c])}"></div>`).join('');
+    const my = mav[i] / max * H;
+    return `<div class="bar-wrap" title="${d.month} 合计 ${eur(d.total)}\n近3月均值 ${eur(mav[i])}">
+      <div class="bar-val">${eur0(d.total)}</div>
+      <div class="bar-stack" style="height:${Math.max(h,2)}px">
+        ${segs}
+        <div style="position:absolute;left:-2px;right:-2px;bottom:${my}px;height:0;
+          border-top:2px dashed rgba(230,237,243,.55);z-index:3"></div>
+      </div>
+      <div class="bar-label">${d.month.slice(5)}月</div>
+    </div>`;
+  }).join('');
+  // 图例只列真正出现在柱子里的类别 —— 「仅可变」模式下房租已被滤掉，
+  // 图例还挂着「住房」的话，点它没有任何反应，看起来像坏了
+  const shown = cats.filter(c => hiddenCats.has(c) || byMonth.some(d => d.parts[c]));
+  document.getElementById('chart-legend').innerHTML = shown.map(c =>
+    `<span class="${hiddenCats.has(c)?'off':''}" data-c="${esc(c)}"><i style="background:${catColor(c)}"></i>${esc(c)}</span>`).join('');
+  document.querySelectorAll('#chart-legend span').forEach(s => s.onclick = () => {
+    const c = s.dataset.c;
+    hiddenCats.has(c) ? hiddenCats.delete(c) : hiddenCats.add(c);
+    renderSummary();
+  });
+
+}
+
+function catTotals(list, refs) {
+  const m = {};
+  list.forEach(t => m[t.l1] = (m[t.l1] || 0) + Math.abs(t.amount));
+  refs.forEach(t => m[t.l1] = (m[t.l1] || 0) - Math.abs(t.amount));
+  return Object.entries(m).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
+}
+
+function renderDonut(exp, ref, total) {
+  const rows = catTotals(exp, ref);
+  let acc = 0;
+  const stops = rows.map(([c,v]) => {
+    const a = acc / total * 360, b = (acc + v) / total * 360;
+    acc += v;
+    return `${catColor(c)} ${a.toFixed(2)}deg ${b.toFixed(2)}deg`;
+  }).join(',');
+  document.getElementById('donut').style.background = `conic-gradient(${stops})`;
+  document.getElementById('donut-total').textContent = eur0(total);
+  // 圈内标签必须跟着口径走 —— 只看可变时还写「总支出」，数字对不上会被当成算错
+  document.getElementById('donut-label').textContent = fxOnlyVar() ? '可变支出' : '总支出';
+  document.getElementById('donut-note').textContent =
+    `${rows.length} 个大类` + (fxOnlyVar() ? ' · 不含固定支出' : '');
+}
+
+/* 类别排行：占比 + 环比。只有占比看不出变化，环比才有行动价值。
+   环比基准分两种情形 —— 选单月时比它之前那个月；选多月时比所选区间之前
+   同样长度的区间。若基准区间在数据范围之外（比如选了全部 6 个月），
+   退化成「区间内最后一月 vs 其前一月」，总之绝不整列显示「—」。 */
+function renderCatRank(months, total) {
+  // 口径必须和环形图一致。这个函数自己从 ALL 重新取数、不走 renderSummary 传下来
+  // 的 vExp/vRef —— 正是「住房仍然出现在类别占比里」的根因：环形图已按开关滤过，
+  // 右边的排行表却还在按全量算，同一张卡片里两边说的不是一回事。
+  const scope = t => !fxOnlyVar() || !t.fixed;
+  const cur = ALL.map(view).filter(t => sumMonths.has(t.month) && !t.excluded && scope(t));
+  const n = months.length;
+  const first = months[0];
+  let prevMs = MONTHS.filter(m => m < first).slice(-n);
+  let curMs = months, moLabel = `对比之前 ${n} 个月（${prevMs.join('、')}）`;
+  let scale = 1;
+  if (!prevMs.length && n > 1) {
+    // 没有更早的数据可比 —— 改成区间内「最后一月 vs 前一月」，并把金额缩放到单月口径
+    curMs = [months[n-1]];
+    prevMs = [months[n-2]];
+    moLabel = `区间内 ${curMs[0]} vs ${prevMs[0]}`;
+    scale = 0;
+  }
+  const pick = ms => ALL.map(view).filter(t => ms.includes(t.month) && !t.excluded && scope(t));
+  const tot = l => Object.fromEntries(catTotals(l.filter(t=>t.kind==='expense'), l.filter(t=>t.kind==='refund')));
+  const cT = catTotals(cur.filter(t=>t.kind==='expense'), cur.filter(t=>t.kind==='refund'));
+  const cMap = scale ? Object.fromEntries(cT) : tot(pick(curMs));
+  const pMap = tot(pick(prevMs));
+  const max = cT.length ? cT[0][1] : 1;
+
+  let expandedCat = window._expandCat;
+  const body = cT.map(([c,v]) => {
+    const p = pMap[c], q = cMap[c];
+    const d = (p && q != null) ? (q - p) / p : null;
+    const mo = d === null
+      ? `<span style="color:var(--text-dim)" title="${prevMs.length?'基准期该类别没有支出':'没有可比的更早数据'}">—</span>`
+      : `<span class="mo ${d>0?'up':'down'}" title="${eur(p)} → ${eur(q)}">${d>0?'↑':'↓'}${Math.abs(d*100).toFixed(0)}%</span>`;
+    const subs = {};
+    cur.filter(t => t.l1===c && t.kind==='expense').forEach(t => subs[t.l2||'（未细分）'] = (subs[t.l2||'（未细分）']||0) + Math.abs(t.amount));
+    const subRows = expandedCat === c ? Object.entries(subs).sort((a,b)=>b[1]-a[1]).map(([s,sv]) =>
+      `<tr class="sub"><td>${esc(s)}</td><td class="num">${eur(sv)}</td>
+       <td class="num" style="color:var(--text-dim)">${pct(sv/v)}</td><td></td><td></td></tr>`).join('') : '';
+    return `<tr class="js-cat" data-c="${esc(c)}" style="cursor:pointer">
+      <td><span class="cdot" style="background:${catColor(c)}"></span>${esc(c)}
+        <span style="color:var(--text-dim);font-size:10px">${expandedCat===c?'▾':'▸'}</span></td>
+      <td class="num">${eur(v)}</td>
+      <td class="num" style="color:var(--text-dim)">${pct(v/total)}</td>
+      <td style="width:70px"><div class="mini" style="width:${v/max*100}%;background:${catColor(c)}"></div></td>
+      <td class="num">${mo}</td>
+    </tr>${subRows}`;
+  }).join('');
+  document.getElementById('cat-rank').innerHTML =
+    `<tr><th>大类</th><th class="num">金额</th><th class="num">占比</th><th></th>
+     <th class="num" title="${esc(moLabel)}">环比 <span style="font-weight:400;opacity:.6">ⓘ</span></th></tr>` +
+    (body || '<tr><td colspan="5" style="color:var(--text-dim)">无支出</td></tr>');
+  document.querySelectorAll('.js-cat').forEach(tr => tr.onclick = () => {
+    window._expandCat = window._expandCat === tr.dataset.c ? null : tr.dataset.c;
+    renderSummary();
+  });
+}
+
+/* 固定 vs 可变。
+   退款必须在这里也冲减 —— 否则同一个月在统计卡里是 €2.451、在这张图里是 €2.488，
+   同页两个数字打架，用户第一反应会是"到底哪个对"，整页可信度就没了。 */
+function renderFixVar(months) {
+  const rows = months.map(m => {
+    const all = ALL.map(view).filter(t => t.month===m && !t.excluded);
+    const l = all.filter(t => t.kind==='expense');
+    const r = all.filter(t => t.kind==='refund');
+    return {
+      m,
+      f: sumAbs(l.filter(t=>t.fixed))  - sumAbs(r.filter(t=>t.fixed)),
+      v: sumAbs(l.filter(t=>!t.fixed)) - sumAbs(r.filter(t=>!t.fixed)),
+    };
+  });
+  const max = Math.max(...rows.map(r => r.f + r.v), 1);
+  document.getElementById('fixvar').innerHTML = `<div class="wf">` + rows.map(r => `
+    <div class="wf-row">
+      <div class="wf-lbl">${r.m.slice(5)}月</div>
+      <div class="wf-track">
+        <i style="left:0;width:${r.f/max*100}%;background:var(--blue);opacity:.75"></i>
+        <i style="left:${r.f/max*100}%;width:${r.v/max*100}%;background:var(--yellow);opacity:.75"></i>
+      </div>
+      <div class="wf-num">${eur0(r.f+r.v)}</div>
+    </div>`).join('') + `</div>
+    <div class="legend" style="margin-top:8px">
+      <span><i style="background:var(--blue)"></i>固定 ${eur0(rows.reduce((s,r)=>s+r.f,0)/rows.length)}/月</span>
+      <span><i style="background:var(--yellow)"></i>可变 ${eur0(rows.reduce((s,r)=>s+r.v,0)/rows.length)}/月</span>
+    </div>`;
+}
+
+/* 商家排行。exp/ref 已由 renderSummary 按页面口径滤过，这里不再自行判断。 */
+function renderMerchants(exp, ref, fixedSum, fixedNames) {
+  const m = {};
+  exp.forEach(t => {
+    const o = m[t.merchant] || (m[t.merchant] = {n:0, v:0, l1:t.l1, fixed:t.fixed});
+    o.n++; o.v += Math.abs(t.amount);
+  });
+  ref.forEach(t => { if (m[t.merchant]) m[t.merchant].v -= Math.abs(t.amount); });
+  const rows = Object.entries(m).sort((a,b) => b[1].v - a[1].v).slice(0, 15);
+  const max = rows.length ? rows[0][1].v : 1;
+
+  document.getElementById('merchant-rank').innerHTML =
+    '<tr><th>商家</th><th class="num">累计</th><th class="num">笔数</th><th class="num">单均</th><th></th></tr>' +
+    (rows.length ? rows.map(([k,o]) => `<tr>
+      <td><span class="cdot" style="background:${catColor(o.l1)}"></span>${esc(k)}${o.fixed?' <span class="kbadge fixed">固定</span>':''}</td>
+      <td class="num">${eur(o.v)}</td>
+      <td class="num" style="color:var(--text-dim)">${o.n}</td>
+      <td class="num" style="color:var(--text-dim)">${eur(o.v/o.n)}</td>
+      <td style="width:60px"><div class="mini" style="width:${o.v/max*100}%;background:${catColor(o.l1)}"></div></td>
+    </tr>`).join('') : '<tr><td colspan="5" style="color:var(--text-dim)">无数据</td></tr>');
+
+  document.getElementById('merchant-sub').textContent = fxOnlyVar()
+    ? `可变的钱具体喂给了谁 · 已排除 ${fixedNames.length} 家固定商家`
+    : '含固定支出 —— 房东与物业会把其余商家压扁';
+}
+
+function renderTags(list) {
+  const m = {};
+  list.forEach(t => (t.tags||[]).forEach(x => {
+    const o = m[x] || (m[x] = {n:0, v:0});
+    o.n++; o.v += t.kind === 'refund' ? -Math.abs(t.amount) : Math.abs(t.amount);
+  }));
+  const rows = Object.entries(m).sort((a,b) => b[1].v - a[1].v);
+  document.getElementById('tag-rank').innerHTML = rows.length
+    ? '<tr><th>标签</th><th class="num">金额</th><th class="num">笔数</th></tr>' + rows.map(([k,o]) =>
+        `<tr><td><span class="tagpill">#${esc(k)}</span></td><td class="num">${eur(o.v)}</td>
+         <td class="num" style="color:var(--text-dim)">${o.n}</td></tr>`).join('')
+    : '<tr><td style="color:var(--text-dim);font-size:11px">还没打过标签。标签用来串起「一次搬家」「一趟旅行」这种跨类别的事。</td></tr>';
+}
+
+/* 消费日历。
+   ① **选了 6 个月就画 6 个月**。原先只画 months 的最后一个，选择器等于失灵。
+   ② 含不含固定支出由页面总开关决定。房租在每月 1 号落地、1100 欧独占色阶顶端，
+      含它时每个月只有 1 号是亮的、其余 30 天全是看不出差别的深色 —— 而这张图
+      本来是用来看"哪几天集中花钱"的。 */
+function renderHeat(months, exp, ref) {
+  const by = {};
+  const add = (t, sign) => {
+    const k = t.date;   // 直接用 ISO 日期做键，跨月不会撞车
+    by[k] = (by[k] || 0) + sign * Math.abs(t.amount);
+  };
+  exp.forEach(t => add(t, 1));
+  (ref || []).forEach(t => add(t, -1));
+  const max = Math.max(...Object.values(by), 1);
+
+  const html = months.map(m => {
+    const [y, mo] = m.split('-').map(Number);
+    const days = new Date(y, mo, 0).getDate();
+    const first = (new Date(y, mo-1, 1).getDay() + 6) % 7;   // 周一为第一列
+    let cells = '一二三四五六日'.split('').map(d => `<div class="hd">${d}</div>`).join('');
+    for (let i = 0; i < first; i++) cells += '<div></div>';
+    let monthSum = 0;
+    for (let d = 1; d <= days; d++) {
+      const key = `${m}-${String(d).padStart(2,'0')}`;
+      const v = by[key] || 0;
+      monthSum += v;
+      const a = v > 0 ? (0.14 + v/max*0.72) : 0;
+      cells += `<div class="cell" style="background:rgba(88,166,255,${a});${v>0?'color:var(--text)':''}"
+        title="${key}　${v?eur(v):'无支出'}">${d}</div>`;
+    }
+    return `<div class="heat-month">
+      <div class="heat-title">${m.slice(5)}月 <span>${eur0(monthSum)}</span></div>
+      <div class="heat">${cells}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('heat-wrap').innerHTML = `<div class="heat-grid">${html}</div>`;
+  document.getElementById('heat-note').textContent =
+    `${months.length} 个月 · 色阶同一量程（峰值 ${eur0(max)}/天）`;
+}
+
+/* 非消费流水。
+   **只统计主账户那条腿**。一笔「主账户 → Savings Space」在 PDF 里是两条记录
+   （主账户 -54,35 与 Space +54,35），两条都算的话净额恒为 0 —— 表格会显示
+   储蓄划转净额 €0,00，看起来像"一分钱没存下"，而真实情况是主账户净流出近 €300。
+   Space 那条腿是同一笔钱的镜像，不是新增的资金流动。 */
+function renderNonConsume(trf) {
+  const m = {};
+  trf.filter(t => t.section === 'main').forEach(t => {
+    const k = t.l2 || '其他';
+    const o = m[k] || (m[k] = {out:0, in:0, n:0});
+    o.n++;
+    t.amount < 0 ? o.out += -t.amount : o.in += t.amount;
+  });
+  const rows = Object.entries(m).sort((a,b) => (b[1].out+b[1].in) - (a[1].out+a[1].in));
+  document.getElementById('nonconsume').innerHTML = rows.length
+    ? '<tr><th>类型</th><th class="num">转出</th><th class="num">转入</th><th class="num">净额</th><th class="num">笔数</th><th>说明</th></tr>' +
+      rows.map(([k,o]) => `<tr>
+        <td>${esc(k)}</td>
+        <td class="num" style="color:var(--red)">${o.out?eur(-o.out):'—'}</td>
+        <td class="num" style="color:var(--green)">${o.in?eur(o.in):'—'}</td>
+        <td class="num">${eur(o.in - o.out)}</td>
+        <td class="num" style="color:var(--text-dim)">${o.n}</td>
+        <td class="hint">${NON_NOTE[k] || ''}</td>
+      </tr>`).join('')
+    : '<tr><td style="color:var(--text-dim);font-size:11px">所选月份没有非消费流水</td></tr>';
+}
+const NON_NOTE = {
+  '储蓄划转': '主账户 ↔ Savings Space，钱在自己两个口袋之间',
+  '亲友往来': '代付 / AA，转出与转回应当大致平衡',
+  '现金提取': '现金花在哪银行看不见 —— 这部分支出是盲区',
+  '跨境汇款': '汇给自己，手续费另计为「金融税费」',
+};
+
+/* ══════════ 分类词表管理 ══════════ */
+
+function openVocab() {
+  const html = Object.entries(vocab).map(([l1, l2s]) => `
+    <div class="vgroup">
+      <div class="vgroup-head">
+        <span class="cdot" style="background:${catColor(l1)};width:10px;height:10px;border-radius:3px"></span>
+        <span class="nm">${esc(l1)}</span>
+        <span style="font-size:10px;color:var(--text-dim)">${countCat(l1)} 笔</span>
+        <button class="btn btn-sm" onclick="renameL1('${esc(l1)}')">改名</button>
+        <button class="btn btn-sm btn-danger" onclick="delL1('${esc(l1)}')">删除</button>
+      </div>
+      <div class="chips">
+        ${l2s.map(x => `<span class="chip" onclick="editL2('${esc(l1)}','${esc(x)}')">${esc(x)}
+          <span class="cnt">${countCat(l1,x)}</span></span>`).join('')}
+        <span class="chip" style="border-style:dashed" onclick="addL2('${esc(l1)}')">+ 二级</span>
+      </div>
+    </div>`).join('');
+  modal(`<h2>管理分类</h2>
+    <div class="modal-sub">大类和二级都可增删改名。<b>改名会同步改写所有引用它的交易</b>，不会留下孤儿数据；
+      删除会把受影响的交易退回「未分类」，需要你重新归类。</div>
+    ${html}
+    <div style="margin-top:10px"><button class="btn" onclick="addL1()">+ 新增大类</button></div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">完成</button></div>`);
+}
+function countCat(l1, l2) {
+  return ALL.filter(t => t.l1 === l1 && (l2 === undefined || t.l2 === l2)).length;
+}
+
+/* 词表增删改名一律走服务端 —— 改名要同步改写所有引用的交易和规则，
+   那是一次跨集合的批量更新，放前端逐条 PATCH 既慢又可能改到一半失败。 */
+async function vocabOp(fn, okMsg) {
+  try {
+    const res = await fn();
+    if (res && res.categories) applyVocab(res.categories);
+    await reloadTx();
+    rules = Object.fromEntries((await api('/rules')).rules.map(r => [r.merchant, r]));
+    openVocab(); renderReview(); renderSummary();
+    flashSaved(okMsg);
+  } catch (e) {
+    showToast('操作失败：' + e.message, 'error');
+  }
+}
+function addL1() {
+  const n = (prompt('新大类名称') || '').trim();
+  if (!n || vocab[n]) return;
+  vocabOp(() => api('/categories', {method:'POST', body:JSON.stringify({l1:n})}));
+}
+function renameL1(old) {
+  const n = (prompt('大类改名', old) || '').trim();
+  if (!n || n === old || vocab[n]) return;
+  vocabOp(() => api('/categories/rename', {method:'POST', body:JSON.stringify({old, new:n})}));
+}
+function delL1(c) {
+  const n = countCat(c);
+  if (!window.confirm(`删除「${c}」？${n ? `${n} 笔交易会退回未分类，并取消已确认状态。` : ''}`)) return;
+  vocabOp(() => api('/categories/' + encodeURIComponent(c), {method:'DELETE'}));
+}
+function addL2(l1) {
+  const n = (prompt(`「${l1}」下新增二级分类`) || '').trim();
+  if (!n || (vocab[l1] || []).includes(n)) return;
+  vocabOp(() => api('/categories/sub', {method:'POST', body:JSON.stringify({l1, sub:n})}));
+}
+function editL2(l1, old) {
+  const n = prompt(`改名或清空以删除 —— 「${l1} › ${old}」`, old);
+  if (n === null) return;
+  if (!n.trim()) {
+    vocabOp(() => api(`/categories/${encodeURIComponent(l1)}/sub/${encodeURIComponent(old)}`,
+                      {method:'DELETE'}));
+  } else if (n !== old) {
+    vocabOp(() => api('/categories/sub/rename',
+                      {method:'POST', body:JSON.stringify({l1, sub:old, new:n.trim()})}));
+  }
+}
+
+/* ══════════ 导入对账单 ══════════ */
+
+function openImport() {
+  const rows = statements.length
+    ? statements.map(s => `<tr>
+        <td>${esc(s.month)}</td>
+        <td style="color:var(--text-dim)">${esc(s.file_name || '')}</td>
+        <td class="num">${s.tx_count}</td>
+        <td>${s.ok ? '<span style="color:var(--green)">✓ 勾稽通过</span>'
+                   : '<span style="color:var(--red)">✗ 勾稽不平</span>'}</td>
+        <td><button class="btn btn-sm btn-danger"
+             onclick="delStatement('${esc(s.file_sha256)}','${esc(s.month)}',${s.tx_count})">删除</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="color:var(--text-dim)">还没有导入过</td></tr>';
+  modal(`<h2>导入对账单</h2>
+    <div class="modal-sub">上传 N26 的月度对账单 PDF。导入时会做<b>余额勾稽</b>
+      （期初 + 本期合计 = 期末）—— 对不上说明解析漏了交易，会直接拒绝入库，
+      不让一笔钱无声消失在统计里。<br>
+      同一个文件重复上传会按内容哈希认出来，不会产生重复数据；
+      <b>重新导入已有月份只刷新银行事实，你的分类、标签、备注、确认状态一律保留。</b></div>
+    <div style="margin-bottom:10px">
+      <input type="file" id="pdf-input" accept=".pdf" multiple
+        style="width:100%;padding:9px;border:1px dashed var(--border);border-radius:8px">
+    </div>
+    <label class="chip" style="padding:5px 10px;margin-bottom:12px;display:inline-block" id="force-chip">
+      <input type="checkbox" id="force-import" style="display:none">
+      强制重新导入（越过去重，以 PDF 重新校对一遍银行数据）</label>
+    <div id="import-log" class="hint" style="margin:10px 0 12px"></div>
+    <h3 style="font-size:13px;margin-bottom:8px">已导入</h3>
+    <table class="rank">
+      <tr><th>月份</th><th>文件</th><th class="num">笔数</th><th>勾稽</th><th></th></tr>
+      ${rows}
+    </table>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">关闭</button>
+      <button class="btn btn-primary" onclick="doImport()">开始导入</button>
+    </div>`);
+  bindForceChip();
+}
+
+async function doImport() {
+  const inp = document.getElementById('pdf-input');
+  const files = [...(inp.files || [])];
+  if (!files.length) { showToast('先选一个 PDF', 'error'); return; }
+  const force = document.getElementById('force-import').checked;
+  const log = document.getElementById('import-log');
+  const lines = [];
+  for (const f of files) {
+    lines.push(`⏳ ${esc(f.name)} …`);
+    log.innerHTML = lines.join('<br>');
+    const fd = new FormData();
+    fd.append('file', f);
+    try {
+      // 注意不要带 Content-Type —— 浏览器要自己生成 multipart 的 boundary
+      const r = await fetch(API + '/import' + (force ? '?force=true' : ''), {
+        method: 'POST', headers: {'x-token': getToken()}, body: fd,
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.detail || ('HTTP ' + r.status));
+      // 三种结局要分清：真导了 / 被去重跳过 / 勾稽不平被拒。
+      // 「跳过」没有 imported 字段 —— 当成成功去读 j.imported.total 会抛异常，
+      // 把一次正常的去重显示成红色的报错。
+      if (j.skipped) {
+        lines[lines.length-1] = j.ok
+          ? `↻ ${esc(f.name)}：${esc(j.reason)}（${esc(j.month || '')}，数据未变）`
+          : `❌ ${esc(f.name)}：${esc(j.reason || '已拒绝')}`;
+      } else if (j.ok) {
+        const im = j.imported || {};
+        lines[lines.length-1] = `✅ ${esc(f.name)} → ${esc(j.month)}，${im.total || 0} 笔`
+          + `（新增 ${im.inserted || 0}、更新 ${im.updated || 0}）`;
+      } else {
+        lines[lines.length-1] = `❌ ${esc(f.name)}：${esc(j.reason || '导入失败')}`;
+      }
+    } catch (e) {
+      lines[lines.length-1] = `❌ ${esc(f.name)}：${esc(e.message)}`;
+    }
+    log.innerHTML = lines.join('<br>');
+  }
+  await boot(true);
+  openImportKeepLog(lines);
+}
+function openImportKeepLog(lines) {
+  openImport();
+  document.getElementById('import-log').innerHTML = lines.join('<br>');
+}
+
+// 勾选态的 chip：checkbox 藏起来，靠 .active 表达状态（与逐条编辑区同一套写法）
+function bindForceChip() {
+  const cb = document.getElementById('force-import');
+  if (!cb) return;
+  const chip = cb.parentElement;
+  chip.onclick = ev => {
+    ev.preventDefault();
+    cb.checked = !cb.checked;
+    chip.classList.toggle('active', cb.checked);
+  };
+}
+
+async function delStatement(sha, month, n) {
+  if (!window.confirm(`删除 ${month} 这次导入及其 ${n} 笔交易？\n\n`
+      + `这些交易上的分类、标签、备注会一并消失，无法撤销。`)) return;
+  try {
+    await api('/statements/' + sha, {method:'DELETE'});
+    await boot(true);
+    openImport();
+    showToast('已删除', 'success');
+  } catch (e) { showToast('删除失败：' + e.message, 'error'); }
+}
+
+function openBackup() {
+  modal(`<h2>数据在哪</h2>
+    <div class="modal-sub">所有数据都在 MongoDB <code>spider_data</code> 库里，
+      随每天 04:00 的 <code>backup</code> 任务一起备份，不需要手工导出。</div>
+    <table class="rank">
+      <tr><th>集合</th><th>存什么</th></tr>
+      <tr><td><code>fin_transactions</code></td><td>交易 + 你的分类/标签/备注/确认状态</td></tr>
+      <tr><td><code>fin_statements</code></td><td>每次导入的批次与勾稽结果</td></tr>
+      <tr><td><code>fin_merchant_rules</code></td><td>商家 → 分类的沉淀规则</td></tr>
+      <tr><td><code>fin_categories</code></td><td>分类词表（你改过的以库为准）</td></tr>
+      <tr><td><code>fin_closed_months</code></td><td>封账过的月份</td></tr>
+    </table>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">知道了</button></div>`);
+}
+
+function modal(html) {
+  document.getElementById('modal-slot').innerHTML =
+    `<div class="modal-mask" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`;
+}
+function closeModal() { document.getElementById('modal-slot').innerHTML = ''; }
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => { t.className = 'toast'; }, 2600);
+}
+
+/* ══════════ 启动 ══════════ */
+
+document.querySelectorAll('.ptab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.ptab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('pane-' + b.dataset.pane).classList.add('active');
+  if (b.dataset.pane === 'summary') renderSummary();
+});
+
+// 页面级口径开关。绑定一次即可 —— renderSummary 只改 .active 类，不重建这几个节点
+document.querySelectorAll('#fx-mode .chip').forEach(c => c.onclick = () => {
+  window._fxOnlyVar = c.dataset.m === 'var';
+  renderSummary();
+});
+
+/* 一次取齐启动数据。keepView=true 时保留当前选中的月份与筛选（导入后刷新用）。 */
+async function boot(keepView) {
+  const prevMonth = reviewMonth;
+  const prevSum = new Set(sumMonths);
+  try {
+    const d = await api('/bootstrap');
+    ALL = d.transactions || [];
+    MONTHS = [...new Set(ALL.map(t => t.month))].sort();
+    applyVocab(d.categories || []);
+    rules = Object.fromEntries((d.rules || []).map(r => [r.merchant, r]));
+    done = {};
+    (d.closed || []).forEach(m => done[m] = true);
+    statements = d.statements || [];
+  } catch (e) {
+    document.getElementById('tx-list').innerHTML =
+      `<div class="empty">载入失败：${esc(e.message)}</div>`;
+    showToast('载入失败：' + e.message, 'error');
+    return false;
+  }
+
+  if (!ALL.length) {
+    document.getElementById('tx-list').innerHTML =
+      '<div class="empty">还没有数据 —— 点右上角「📥 导入对账单」上传 N26 的 PDF</div>';
+    document.getElementById('review-stats').innerHTML = '';
+    document.getElementById('review-months').innerHTML = '';
+    return true;
+  }
+
+  reviewMonth = (keepView && MONTHS.includes(prevMonth)) ? prevMonth : MONTHS[0];
+  sumMonths = keepView && prevSum.size
+    ? new Set([...prevSum].filter(m => MONTHS.includes(m)))
+    : new Set(MONTHS);
+  if (!sumMonths.size) sumMonths = new Set(MONTHS);
+  renderReview();
+  renderSummary();
+  return true;
+}
+
+(async function init() {
+  mountTokenBar();                     // 本域还没 token 时的兜底入口
+  const ok = await boot(false);
+  if (!ok || !ALL.length) return;
+  const rec = statements.flatMap(s => s.reconcile || []);
+  const bad = rec.filter(r => !r.ok).length;
+  showToast(bad ? `⚠ ${bad} 段余额勾稽不平` :
+            `已载入 ${ALL.length} 笔 · ${rec.length} 段余额勾稽全部通过`,
+            bad ? 'error' : 'success');
+})();
+</script>
+</body>
+</html>

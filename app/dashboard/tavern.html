@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>酒馆资料</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>">
+<link rel="stylesheet" href="/dashboard/theme.css">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; }
+header { display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 24px; border-bottom:1px solid var(--border); background:var(--surface);
+  position:sticky; top:0; z-index:20; }
+header h1 { font-size:20px; font-weight:600; }
+.header-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--text-dim); }
+main.page { padding:16px 24px 40px; }
+
+.btn { padding:5px 14px; border-radius:6px; font-size:12px; cursor:pointer;
+  border:1px solid var(--border); background:transparent; color:var(--text-dim);
+  transition:all .15s; white-space:nowrap; font-family:inherit; }
+.btn:hover { color:var(--text); border-color:var(--text-dim); }
+.btn:disabled { opacity:.35; cursor:not-allowed; }
+.btn-sm { padding:3px 10px; font-size:11px; }
+.btn-primary { background:var(--blue); color:#fff; border-color:var(--blue); }
+.btn-primary:hover { opacity:.9; color:#fff; }
+.btn-danger { color:var(--red); border-color:var(--red); }
+.btn-danger:hover { background:var(--red); color:#fff; }
+.btn-success { color:var(--green); border-color:var(--green); }
+.btn-success:hover { background:var(--green); color:#fff; }
+
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; margin-bottom:12px; }
+.panel h3 { font-size:14px; font-weight:600; margin-bottom:10px; display:flex;
+  align-items:center; gap:6px; flex-wrap:wrap; }
+.panel h3 .sp { margin-left:auto; display:flex; gap:6px; align-items:center; }
+.panel-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+
+input[type=text], select {
+  background:var(--bg); border:1px solid var(--border); color:var(--text);
+  border-radius:6px; padding:6px 10px; font-size:13px; font-family:inherit; outline:none; }
+input:focus, select:focus { border-color:var(--blue); }
+.muted { color:var(--text-dim); font-size:12px; line-height:1.7; }
+.mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+.badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px;
+  border:1px solid var(--border); color:var(--text-dim); white-space:nowrap; }
+.badge.ok { color:var(--green); border-color:var(--green); background:var(--green-bg); }
+.badge.warn { color:var(--yellow); border-color:var(--yellow); background:var(--yellow-bg); }
+.badge.err { color:var(--red); border-color:var(--red); background:var(--red-bg); }
+.badge.info { color:var(--blue); border-color:var(--blue); background:var(--blue-bg); }
+.badge.pp { color:var(--purple); border-color:var(--purple); background:var(--purple-bg); }
+
+/* ── 类型筛选 chips ── */
+.chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chip { padding:3px 11px; border-radius:12px; font-size:12px; cursor:pointer;
+  border:1px solid var(--border); background:var(--bg); color:var(--text-dim);
+  transition:all .12s; user-select:none; }
+.chip:hover { border-color:var(--text-dim); color:var(--text); }
+.chip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+
+/* ── 搜索结果 ── */
+#search-results { max-height:330px; overflow-y:auto; border:1px solid var(--border);
+  border-radius:8px; margin-top:4px; }
+#search-results:empty { display:none; }
+.sr-item { display:flex; align-items:center; gap:10px; padding:7px 11px;
+  border-bottom:1px solid var(--border); font-size:13px; }
+.sr-item:last-child { border-bottom:none; }
+.sr-item:hover { background:var(--surface2); }
+.sr-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sr-file { font-size:11px; color:var(--grey); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; max-width:200px; }
+
+/* ── 管理列表 ── */
+table.mgr { width:100%; border-collapse:collapse; font-size:13px; }
+table.mgr th { text-align:left; color:var(--text-dim); font-weight:500; font-size:11px;
+  padding:6px 8px; border-bottom:1px solid var(--border); text-transform:uppercase;
+  letter-spacing:.4px; }
+table.mgr td { padding:7px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+table.mgr tr:last-child td { border-bottom:none; }
+table.mgr tr.sel td { background:var(--blue-bg); }
+table.mgr td.acts { text-align:right; white-space:nowrap; }
+table.mgr td.acts .btn { margin-left:4px; }
+.name-cell { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.name-cell .nm { font-weight:500; cursor:pointer; }
+.name-cell .nm:hover { color:var(--blue); text-decoration:underline; }
+
+.empty { padding:26px 12px; text-align:center; color:var(--text-dim); font-size:13px; }
+
+/* ── 输出/日志 ── */
+pre.out { background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:10px 12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11.5px; line-height:1.65; max-height:300px; overflow:auto;
+  white-space:pre-wrap; word-break:break-word; color:var(--text-dim); }
+pre.out.ok { border-color:rgba(63,185,80,.4); }
+pre.out.err { border-color:rgba(248,81,73,.4); color:#ffa198; }
+
+/* ── 本地文件树 ── */
+.tree { max-height:300px; overflow:auto; font-size:12px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.tree-item { display:flex; gap:8px; padding:3px 6px; border-radius:4px; cursor:pointer; }
+.tree-item:hover { background:var(--surface2); color:var(--blue); }
+.tree-item .sz { margin-left:auto; color:var(--grey); font-size:11px; }
+
+/* ── 聊天记录 ── */
+.chat-row { display:flex; align-items:center; gap:10px; padding:8px 10px;
+  border-bottom:1px solid var(--border); font-size:13px; }
+.chat-row:last-child { border-bottom:none; }
+.chat-row:hover { background:var(--surface2); }
+.chat-main { flex:1; min-width:0; }
+.chat-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  cursor:pointer; }
+.chat-name:hover { color:var(--blue); text-decoration:underline; }
+.chat-meta { font-size:11px; color:var(--grey); margin-top:2px; }
+.chat-acts { white-space:nowrap; display:flex; gap:4px; }
+.fmt-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-bottom:10px; font-size:12px; color:var(--text-dim); }
+
+/* ── 聊天记录总表 ── */
+.cm-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.cm-bar .grow { flex:1; }
+.cm-stats { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);
+  margin:-2px 0 10px; }
+.cm-stats b { color:var(--text); font-weight:600; }
+table.cm { width:100%; border-collapse:collapse; font-size:13px; }
+table.cm th { text-align:left; color:var(--text-dim); font-weight:500; font-size:11px;
+  padding:6px 8px; border-bottom:1px solid var(--border); text-transform:uppercase;
+  letter-spacing:.4px; white-space:nowrap; }
+table.cm th.sortable { cursor:pointer; user-select:none; }
+table.cm th.sortable:hover { color:var(--text); }
+table.cm th.on { color:var(--blue); }
+table.cm td { padding:6px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+table.cm tr:last-child td { border-bottom:none; }
+table.cm tr.sel td { background:var(--blue-bg); }
+table.cm tr.locked td { opacity:.55; }
+table.cm td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+table.cm td.acts { text-align:right; white-space:nowrap; }
+table.cm td.acts .btn { margin-left:3px; }
+.cm-title { cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  max-width:320px; display:inline-block; vertical-align:middle; }
+.cm-title:hover { color:var(--blue); text-decoration:underline; }
+.cm-card { color:var(--text-dim); font-size:11.5px; }
+.cm-wrap { max-height:64vh; overflow:auto; border:1px solid var(--border); border-radius:8px; }
+.cm-group td { background:var(--surface2); font-size:12px; font-weight:600; }
+.cm-zero { color:var(--red); font-weight:600; }
+.cm-sel-bar { position:sticky; bottom:0; background:var(--surface2);
+  border-top:1px solid var(--border); padding:8px 12px; display:flex; gap:8px;
+  align-items:center; flex-wrap:wrap; font-size:12px; }
+
+/* 预览：用户/角色分列，一眼看出是谁说的 */
+.msg { padding:8px 0; border-bottom:1px solid var(--border); }
+.msg:last-child { border-bottom:none; }
+.msg-who { font-size:11px; color:var(--text-dim); margin-bottom:3px; }
+.msg-who b { color:var(--text); font-weight:600; }
+.msg.user .msg-who b { color:var(--blue); }
+.msg-text { font-size:12.5px; line-height:1.7; white-space:pre-wrap;
+  word-break:break-word; }
+
+/* ── 弹窗 ── */
+.mask { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000;
+  display:flex; align-items:center; justify-content:center; padding:20px; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:18px 20px; width:760px; max-width:100%; max-height:86vh; overflow:auto; }
+.modal h4 { font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.modal h4 .sp { margin-left:auto; }
+.modal pre { background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:10px 12px; font-size:11.5px; line-height:1.6; overflow:auto; max-height:56vh;
+  white-space:pre-wrap; word-break:break-word; }
+
+.toast { position:fixed; top:14px; left:50%; transform:translateX(-50%) translateY(-60px);
+  background:var(--surface2); border:1px solid var(--border); color:var(--text);
+  padding:8px 18px; border-radius:8px; font-size:13px; z-index:2000; opacity:0;
+  transition:all .25s; pointer-events:none; }
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+.toast.ok { border-color:var(--green); }
+.toast.err { border-color:var(--red); }
+
+@media (max-width:760px) {
+  header, main.page { padding-left:12px; padding-right:12px; }
+  .sr-file { display:none; }
+}
+</style>
+<!-- dsh-embed-chrome: 被 index.html 的 iframe 内嵌时去掉自己的标题 ——
+     外层侧边栏已经写着「我在哪」，再来一行 h1 是第二条标题栏，白占竖向空间。
+     判据用 self!==top 而不是写死：这些页面单独打开仍是可用的完整页面，那时标题必须留着。
+     放 <head> 内联脚本里，在首次绘制前就打上 class，避免标题闪一下再消失。 -->
+<script>try{if(window.self!==window.top)document.documentElement.classList.add('embedded');}catch(e){document.documentElement.classList.add('embedded');}</script>
+<style>
+html.embedded header h1 { display: none; }
+/* h1 一藏，space-between 只剩一个子元素，按钮会整排甩到左边。 */
+html.embedded header { justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header>
+  <h1>🍺 酒馆资料</h1>
+  <div class="header-right" id="hdr-info">载入中…</div>
+</header>
+
+<main class="page">
+
+  <!-- ═══════ 环境提示 ═══════ -->
+  <div class="panel" id="env-panel" style="display:none">
+    <h3>⚠️ 环境检查</h3>
+    <div class="muted" id="env-body"></div>
+  </div>
+
+  <!-- ═══════ 搜索并添加 ═══════ -->
+  <div class="panel">
+    <h3>🔍 从酒馆中查找并添加
+      <span class="sp">
+        <button class="btn btn-sm" onclick="reloadCatalog()" title="重新扫描酒馆 data 目录">↻ 重新扫描</button>
+      </span>
+    </h3>
+    <div class="panel-row">
+      <input type="text" id="q" placeholder="输入名字的一部分，如「欲望」「生理」…" style="flex:1;min-width:220px"
+             oninput="onQueryInput()" onkeydown="if(event.key==='Enter')doSearch()">
+      <div class="chips" id="type-chips"></div>
+    </div>
+    <div class="muted" id="search-hint">酒馆里资料太多，这里只按名字搜 —— 输入关键词后从结果里挑。</div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- ═══════ 管理列表 ═══════ -->
+  <div class="panel">
+    <h3>📋 已纳入管理
+      <span class="badge info" id="entry-count">0</span>
+      <span class="sp">
+        <button class="btn btn-sm btn-success" onclick="syncAll('pull')" title="把酒馆里的内容全部拉到本地">⬇ 全部拉取</button>
+        <button class="btn btn-sm" onclick="syncAll('push')" title="把本地修改全部推回酒馆（强制：以本地为准）">⬆ 全部推送</button>
+        <button class="btn btn-sm" onclick="loadEntries()">↻</button>
+      </span>
+    </h3>
+    <div class="muted" style="margin:-4px 0 10px">
+      推送为<b>强制模式</b>：以本地为准覆盖酒馆（酒馆里没有的卡会被新建，多出来的条目会被删除）。
+      若你在酒馆网页里直接改过东西，先「⬇ 拉取」再改本地。
+    </div>
+    <div id="entries-body"><div class="empty">载入中…</div></div>
+  </div>
+
+  <!-- ═══════ 聊天记录总表 ═══════ -->
+  <div class="panel">
+    <h3>💬 聊天记录
+      <span class="badge info" id="cm-count">0</span>
+      <span class="sp">
+        <span class="muted" id="cm-ops-state"></span>
+        <button class="btn btn-sm" onclick="loadOverview(true)" title="重新扫描聊天目录">↻ 重新扫描</button>
+      </span>
+    </h3>
+    <div class="cm-stats" id="cm-stats"></div>
+    <div class="cm-bar">
+      <input type="text" id="cm-q" placeholder="按卡名或记录名筛选…" style="min-width:200px"
+             oninput="renderOverview()">
+      <label class="muted" style="display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="cm-only-junk" onchange="renderOverview()">
+        只看「我一句没说」
+      </label>
+      <label class="muted" style="display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="cm-group" onchange="renderOverview()">
+        按角色卡分组
+      </label>
+      <span class="grow"></span>
+      <span class="muted" id="cm-shown"></span>
+    </div>
+    <div id="cm-body"><div class="empty">载入中…</div></div>
+  </div>
+
+  <!-- ═══════ 执行输出 ═══════ -->
+  <div class="panel" id="out-panel" style="display:none">
+    <h3>🖥 执行输出 <span class="sp"><button class="btn btn-sm" onclick="hideOut()">收起</button></span></h3>
+    <pre class="out" id="out-body"></pre>
+  </div>
+
+</main>
+
+<script src="/legacy/common.js?v=3"></script>
+<script>
+const TOKEN = getToken() || '';
+const TYPES = ['角色卡', '世界书', '预设'];
+const TYPE_ICON = { '角色卡': '🃏', '世界书': '📖', '预设': '⚙️' };
+
+let activeType = '';      // '' = 全部
+let entries = [];
+let busy = false;
+let searchTimer = null;
+
+function hdr() {
+  const h = { 'Content-Type': 'application/json' };
+  if (TOKEN) h['x-token'] = TOKEN;
+  return h;
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+function toast(msg, type) { if (typeof showToast === 'function') showToast(msg, type); else alert(msg); }
+
+async function api(method, path, body) {
+  const opts = { method: method, headers: hdr() };
+  if (body !== undefined && body !== null) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  const ct = r.headers.get('content-type') || '';
+  const data = ct.indexOf('application/json') >= 0 ? await r.json() : await r.text();
+  if (!r.ok) throw new Error((data && data.detail) ? data.detail : ('HTTP ' + r.status));
+  return data;
+}
+
+// ══════════ 类型筛选 ══════════
+
+function renderChips() {
+  const el = document.getElementById('type-chips');
+  const all = '<span class="chip' + (activeType === '' ? ' active' : '') +
+              '" onclick="setType(\'\')">全部</span>';
+  el.innerHTML = all + TYPES.map(t =>
+    '<span class="chip' + (activeType === t ? ' active' : '') +
+    '" onclick="setType(\'' + t + '\')">' + TYPE_ICON[t] + ' ' + t + '</span>'
+  ).join('');
+}
+
+function setType(t) {
+  activeType = t;
+  renderChips();
+  doSearch();
+}
+
+// ══════════ 搜索 ══════════
+
+function onQueryInput() {
+  // 防抖：每敲一个字就打一次后端没必要，300ms 内的连续输入只发最后一次
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 300);
+}
+
+async function doSearch() {
+  const q = document.getElementById('q').value.trim();
+  const box = document.getElementById('search-results');
+  const hint = document.getElementById('search-hint');
+  if (!q) {
+    box.innerHTML = '';
+    hint.textContent = '酒馆里资料太多，这里只按名字搜 —— 输入关键词后从结果里挑。';
+    return;
+  }
+  try {
+    let url = '/api/tavern/search?q=' + encodeURIComponent(q) + '&limit=40';
+    if (activeType) url += '&type=' + encodeURIComponent(activeType);
+    const d = await api('GET', url);
+    const rows = d.results || [];
+    hint.textContent = rows.length
+      ? ('找到 ' + rows.length + ' 项' + (rows.length >= 40 ? '（已截断，再输详细些）' : ''))
+      : '没有匹配的资料。';
+    // 已管理的置灰，避免重复添加后才看到报错
+    const managed = new Set(entries.map(e => e.type + '\u0000' + e.name));
+    // 资料名称是任意文本，绝不能拼进内联 onclick 的 JS 字符串字面量里 ——
+    // 一个反斜杠或引号就能把处理器拆坏（HTML 转义挡不住这层）。
+    // 故用 DOM 构建 + addEventListener，名字只在 JS 值里流动。
+    box.textContent = '';
+    rows.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'sr-item';
+
+      const type = document.createElement('span');
+      type.className = 'badge';
+      type.textContent = TYPE_ICON[r.type] + ' ' + r.type;
+      row.appendChild(type);
+
+      const nm = document.createElement('span');
+      nm.className = 'sr-name';
+      nm.textContent = r.name;
+      row.appendChild(nm);
+
+      // 文件名与酒馆名称不一致时点出来 —— 这正是「按文件名找不到卡」的根源
+      const expected = r.name + (r.type === '角色卡' ? '.png' : '.json');
+      if (r.file !== expected) {
+        const f = document.createElement('span');
+        f.className = 'sr-file';
+        f.title = '源文件名与酒馆中的名称不同';
+        f.textContent = '📄 ' + r.file;
+        row.appendChild(f);
+      }
+
+      // 聊天记录与「有没有纳入管理」无关 —— 想导出某张卡的记录不必先加管理，
+      // 所以搜索结果里就给入口。世界书/预设没有对话，不给。
+      if (r.type === '角色卡') {
+        const cb = document.createElement('button');
+        cb.className = 'btn btn-sm';
+        cb.textContent = '💬';
+        cb.title = '查看 / 导出聊天记录';
+        cb.addEventListener('click', () => openChats(r.name));
+        row.appendChild(cb);
+      }
+
+      if (managed.has(r.type + '\u0000' + r.name)) {
+        const tag = document.createElement('span');
+        tag.className = 'badge ok';
+        tag.textContent = '已管理';
+        row.appendChild(tag);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-primary';
+        btn.textContent = '+ 添加';
+        btn.addEventListener('click', () => addEntry(btn, r.name, r.type));
+        row.appendChild(btn);
+      }
+      box.appendChild(row);
+    });
+  } catch (e) {
+    hint.textContent = '搜索失败：' + e.message;
+    box.innerHTML = '';
+  }
+}
+
+async function addEntry(btn, name, type) {
+  btn.disabled = true;
+  try {
+    await api('POST', '/api/tavern/entries', { name: name, type: type });
+    toast('已添加「' + name + '」', 'ok');
+    await loadEntries();
+    doSearch();
+  } catch (e) {
+    toast('添加失败：' + e.message, 'err');
+    btn.disabled = false;
+  }
+}
+
+// ══════════ 管理列表 ══════════
+
+async function loadEntries() {
+  try {
+    const d = await api('GET', '/api/tavern/entries');
+    entries = d.entries || [];
+    renderEntries();
+  } catch (e) {
+    document.getElementById('entries-body').innerHTML =
+      '<div class="empty">载入失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function renderEntries() {
+  document.getElementById('entry-count').textContent = entries.length;
+  const body = document.getElementById('entries-body');
+  if (!entries.length) {
+    body.innerHTML = '<div class="empty">还没有纳入管理的资料 —— 用上面的搜索框找到后点「添加」。</div>';
+    return;
+  }
+  const rows = entries.map((e, i) => {
+    const pulled = e.pulled
+      ? '<span class="badge ok" title="本地已有 目录.yaml">已拉取 · ' + e.file_count + ' 个文件</span>'
+      : '<span class="badge warn">未拉取</span>';
+    // 酒馆里找不到：多半是在酒馆那边改名或删掉了，此时 pull/push 一定会失败
+    const gone = e.in_tavern ? '' : '<span class="badge err" title="酒馆中已找不到这个名称">酒馆中缺失</span>';
+    const alias = e.alias ? '<span class="badge pp" title="短名，可用于命令行">' + esc(e.alias) + '</span>' : '';
+    const custom = e.kind === 'full' ? '<span class="badge" title="完整写法，路径可能被自定义过">自定义</span>' : '';
+    // 聊天记录只有角色卡有（世界书/预设不是对话对象）
+    const isChar = e.type === '角色卡';
+    const chats = isChar && e.chat_count
+      ? '<span class="badge info" title="酒馆里这张卡的聊天记录份数">💬 ' + e.chat_count + '</span>'
+      : '';
+    // 刻意不给「0 份」的按钮加 disabled：setBusy() 会在同步结束后把所有
+    // 没标 data-keep 的按钮统一 enable 回来，disabled 撑不过一次同步。
+    // 反正弹窗自己会说「还没有聊天记录」，点开也不会出错。
+    const chatBtn = isChar
+      ? '<button class="btn btn-sm" onclick="showChats(' + i + ')" title="' +
+        (e.chat_count ? '查看并导出聊天记录' : '这张卡还没有聊天记录') + '">💬 聊天</button>'
+      : '';
+    return '<tr>' +
+      '<td><span class="badge">' + TYPE_ICON[e.type] + ' ' + esc(e.type) + '</span></td>' +
+      '<td><div class="name-cell">' +
+        '<span class="nm" onclick="showLocal(' + i + ')" title="查看本地文件">' + esc(e.name) + '</span>' +
+        alias + custom + chats + gone +
+      '</div></td>' +
+      '<td>' + pulled + '</td>' +
+      '<td class="mono" style="font-size:11px;color:var(--grey)">' + esc(e.local_dir) + '</td>' +
+      '<td class="acts">' +
+        chatBtn +
+        '<button class="btn btn-sm btn-success" onclick="syncOne(' + i + ',\'pull\')" title="酒馆 → 本地">⬇ 拉取</button>' +
+        '<button class="btn btn-sm" onclick="syncOne(' + i + ',\'push\')" title="本地 → 酒馆（强制，以本地为准）">⬆ 推送</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="removeEntry(' + i + ')">删除</button>' +
+      '</td></tr>';
+  }).join('');
+  body.innerHTML =
+    '<table class="mgr"><thead><tr>' +
+    '<th>类型</th><th>名称</th><th>本地状态</th><th>本地目录</th><th></th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+async function removeEntry(i) {
+  const e = entries[i];
+  if (!e) return;
+  if (!confirm('把「' + e.name + '」移出管理列表？\n\n（本地已拉取的文件不会删除）')) return;
+  let delLocal = false;
+  if (e.pulled && e.file_count > 0) {
+    delLocal = confirm('同时删除本地目录 ' + e.local_dir + '（' + e.file_count + ' 个文件）？\n\n' +
+                       '点「取消」则只移出列表、保留文件。');
+  }
+  try {
+    const r = await api('POST', '/api/tavern/entries/remove', { name: e.name, delete_local: delLocal });
+    toast('已移除「' + e.name + '」' + (r.removed_local ? '（含本地文件）' : ''), 'ok');
+    await loadEntries();
+    doSearch();
+  } catch (err) {
+    toast('移除失败：' + err.message, 'err');
+  }
+}
+
+// ══════════ 同步 ══════════
+
+// 同步进行中要把头部换成进度提示，结束后还原 —— 存一份原文本
+let lastHdrInfo = '';
+
+function setBusy(on, label) {
+  busy = on;
+  document.querySelectorAll('.btn').forEach(b => {
+    if (b.dataset.keep === '1') return;
+    b.disabled = on;
+  });
+  document.getElementById('hdr-info').textContent =
+    on ? ('⏳ ' + label + ' 中…（需要酒馆网页开着）') : (lastHdrInfo || '');
+}
+
+async function runSync(action, name) {
+  if (busy) { toast('已有同步任务在跑', 'err'); return; }
+  const label = action === 'pull' ? '拉取' : '推送';
+  setBusy(true, label);
+  showOut('正在' + label + '…\n\ntavern_sync 需要酒馆网页连上来才能读写数据。\n' +
+          '如果卡住，请确认酒馆页面已打开且「实时编写」脚本已启用。', '');
+  try {
+    const r = await api('POST', '/api/tavern/' + action, { name: name || null });
+    showOut(r.output || '(无输出)', r.ok ? 'ok' : 'err');
+    toast(label + (r.ok ? '完成' : '失败（详见输出）'), r.ok ? 'ok' : 'err');
+    await loadEntries();
+  } catch (e) {
+    showOut(e.message, 'err');
+    toast(label + '失败：' + e.message, 'err');
+  } finally {
+    setBusy(false);
+  }
+}
+
+function syncOne(i, action) {
+  const e = entries[i];
+  if (!e) return;
+  runSync(action, e.name);
+}
+
+function syncAll(action) {
+  // 先查空再问确认：列表是空的还先弹一个「确定要推送吗」纯属白问
+  if (!entries.length) { toast('管理列表是空的', 'err'); return; }
+  // 推送是强制的（本地为唯一事实来源），批量时值得明说一次
+  if (action === 'push' && !confirm(
+      '把本地全部 ' + entries.length + ' 项推回酒馆？\n\n' +
+      '推送为强制模式：以本地为准覆盖酒馆，\n' +
+      '酒馆中多出来的条目会被删除。')) return;
+  runSync(action, null);
+}
+
+function showOut(text, cls) {
+  const p = document.getElementById('out-panel');
+  const b = document.getElementById('out-body');
+  p.style.display = '';
+  b.className = 'out ' + (cls || '');
+  b.textContent = text;
+  b.scrollTop = b.scrollHeight;
+}
+function hideOut() { document.getElementById('out-panel').style.display = 'none'; }
+
+// ══════════ 本地文件 ══════════
+
+async function showLocal(i) {
+  const e = entries[i];
+  if (!e) return;
+  let d;
+  try {
+    d = await api('GET', '/api/tavern/local?name=' + encodeURIComponent(e.name) +
+                         '&type=' + encodeURIComponent(e.type));
+  } catch (err) { toast('读取失败：' + err.message, 'err'); return; }
+
+  const files = d.files || [];
+  const wrap = document.createElement('div');
+
+  const dirLine = document.createElement('div');
+  dirLine.className = 'muted mono';
+  dirLine.style.marginBottom = '10px';
+  dirLine.textContent = d.dir;
+  wrap.appendChild(dirLine);
+
+  if (!d.exists || !files.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = d.exists ? '目录存在但没有文件。' : '本地还没有这份资料 —— 先点「⬇ 拉取」。';
+    wrap.appendChild(empty);
+  } else {
+    // 同搜索结果：路径是任意文本，用 DOM + 事件绑定，不拼内联 onclick
+    const tree = document.createElement('div');
+    tree.className = 'tree';
+    files.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'tree-item';
+      const nm = document.createElement('span');
+      nm.textContent = '📄 ' + f.path;
+      const sz = document.createElement('span');
+      sz.className = 'sz';
+      sz.textContent = fmtSize(f.size);
+      row.appendChild(nm);
+      row.appendChild(sz);
+      row.addEventListener('click', () => viewFile(i, f.path));
+      tree.appendChild(row);
+    });
+    wrap.appendChild(tree);
+  }
+
+  openModal(TYPE_ICON[e.type] + ' ' + esc(e.name), wrap);
+}
+
+async function viewFile(i, path) {
+  const e = entries[i];
+  if (!e) return;
+  try {
+    const d = await api('GET', '/api/tavern/local/file?name=' + encodeURIComponent(e.name) +
+                               '&type=' + encodeURIComponent(e.type) +
+                               '&path=' + encodeURIComponent(path));
+    const pre = document.createElement('pre');
+    pre.textContent = d.content;   // 文件正文原样显示，绝不当 HTML 解析
+    openModal('📄 ' + esc(path), pre,
+      { text: '← 返回文件列表', onClick: () => showLocal(i) });
+  } catch (err) { toast('读取失败：' + err.message, 'err'); }
+}
+
+// ══════════ 聊天记录 ══════════
+
+// 导出格式记在本地：同一个人基本只用一种格式，每次都重选很烦
+const FMT_KEY = 'tavern-chat-format';
+const FMTS = [
+  { v: 'md',    label: 'Markdown', tip: '带标题与时间的可读文档' },
+  { v: 'txt',   label: '纯文本',   tip: '最朴素的对话稿' },
+  { v: 'jsonl', label: '原始 JSONL', tip: '酒馆原文件，可导回酒馆' }
+];
+function curFmt() {
+  const v = localStorage.getItem(FMT_KEY);
+  return FMTS.some(f => f.v === v) ? v : 'md';
+}
+
+// 卡名可能来自管理列表，也可能来自搜索结果 —— 统一按名字走，
+// 不依赖 entries 的下标（弹窗开着时列表可能已被刷新掉）。
+async function showChats(i) {
+  const e = entries[i];
+  if (!e) return;
+  openChats(e.name);
+}
+
+async function openChats(cardName) {
+  let d;
+  try {
+    d = await api('GET', '/api/tavern/chats?name=' + encodeURIComponent(cardName));
+  } catch (err) { toast('读取失败：' + err.message, 'err'); return; }
+
+  const list = d.chats || [];
+  const wrap = document.createElement('div');
+
+  // ── 格式选择 + 全部导出 ──
+  const bar = document.createElement('div');
+  bar.className = 'fmt-bar';
+  const lbl = document.createElement('span');
+  lbl.textContent = '导出格式';
+  bar.appendChild(lbl);
+
+  const sel = document.createElement('select');
+  FMTS.forEach(f => {
+    const o = document.createElement('option');
+    o.value = f.v; o.textContent = f.label; o.title = f.tip;
+    sel.appendChild(o);
+  });
+  sel.value = curFmt();
+  sel.addEventListener('change', () => {
+    localStorage.setItem(FMT_KEY, sel.value);
+    hintFmt.textContent = (FMTS.find(f => f.v === sel.value) || {}).tip || '';
+  });
+  bar.appendChild(sel);
+
+  const hintFmt = document.createElement('span');
+  hintFmt.textContent = (FMTS.find(f => f.v === sel.value) || {}).tip || '';
+  bar.appendChild(hintFmt);
+
+  if (list.length > 1) {
+    const all = document.createElement('button');
+    all.className = 'btn btn-sm btn-primary';
+    all.dataset.keep = '1';
+    all.style.marginLeft = 'auto';
+    all.textContent = '⬇ 全部导出（zip）';
+    all.addEventListener('click', () => download(all,
+      '/api/tavern/chats/export-all?name=' + encodeURIComponent(cardName) +
+      '&format=' + encodeURIComponent(sel.value)));
+    bar.appendChild(all);
+  }
+  wrap.appendChild(bar);
+
+  if (!list.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = d.exists
+      ? '这张卡还没有聊天记录。'
+      : '酒馆里还没有这张卡的聊天目录 —— 聊过一次后才会出现。';
+    wrap.appendChild(empty);
+  } else {
+    const box = document.createElement('div');
+    box.style.cssText = 'border:1px solid var(--border);border-radius:8px;overflow:hidden';
+    list.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'chat-row';
+
+      const main = document.createElement('div');
+      main.className = 'chat-main';
+      const nm = document.createElement('div');
+      nm.className = 'chat-name';
+      // 聊天标题是任意文本，同全站约定：只走 textContent，不拼 HTML
+      nm.textContent = c.file.replace(/\.jsonl$/, '');
+      nm.title = '点击预览';
+      nm.addEventListener('click', () => previewChat(cardName, c.file));
+      const meta = document.createElement('div');
+      meta.className = 'chat-meta';
+      meta.textContent = c.messages + ' 条 · ' + fmtSize(c.size) +
+                         (c.modified ? ' · ' + fmtTime(c.modified) : '');
+      main.appendChild(nm);
+      main.appendChild(meta);
+      row.appendChild(main);
+
+      const acts = document.createElement('div');
+      acts.className = 'chat-acts';
+      const dl = document.createElement('button');
+      dl.className = 'btn btn-sm';
+      dl.dataset.keep = '1';
+      dl.textContent = '⬇ 导出';
+      dl.addEventListener('click', () => download(dl,
+        '/api/tavern/chats/export?name=' + encodeURIComponent(cardName) +
+        '&file=' + encodeURIComponent(c.file) +
+        '&format=' + encodeURIComponent(sel.value)));
+      acts.appendChild(dl);
+      row.appendChild(acts);
+
+      box.appendChild(row);
+    });
+    wrap.appendChild(box);
+  }
+
+  openModal('💬 ' + esc(cardName) + ' 的聊天记录', wrap);
+}
+
+async function previewChat(cardName, file) {
+  let d;
+  try {
+    d = await api('GET', '/api/tavern/chats/preview?name=' + encodeURIComponent(cardName) +
+                         '&file=' + encodeURIComponent(file) + '&limit=60');
+  } catch (err) { toast('读取失败：' + err.message, 'err'); return; }
+
+  const wrap = document.createElement('div');
+  const head = document.createElement('div');
+  head.className = 'muted';
+  head.style.marginBottom = '8px';
+  head.textContent = '共 ' + d.total + ' 条' +
+    (d.truncated ? '，这里只显示前 ' + d.messages.length + ' 条（完整内容请导出）' : '');
+  wrap.appendChild(head);
+
+  (d.messages || []).forEach(m => {
+    const box = document.createElement('div');
+    box.className = 'msg' + (m.is_user ? ' user' : '');
+    const who = document.createElement('div');
+    who.className = 'msg-who';
+    const b = document.createElement('b');
+    b.textContent = (m.is_user ? '🧑 ' : '🤖 ') + m.who;
+    who.appendChild(b);
+    if (m.at) who.appendChild(document.createTextNode('　' + m.at));
+    const txt = document.createElement('div');
+    txt.className = 'msg-text';
+    txt.textContent = m.text;   // 正文里有 HTML 标签，绝不当 HTML 解析
+    box.appendChild(who);
+    box.appendChild(txt);
+    wrap.appendChild(box);
+  });
+
+  openModal('💬 ' + esc(file.replace(/\.jsonl$/, '')), wrap,
+    { text: '← 返回聊天列表', onClick: () => openChats(cardName) });
+}
+
+/**
+ * 带 token 下载。
+ * 不能直接 location.href —— 接口要 x-token 头，浏览器的普通导航带不上它
+ * （会直接吃 401）。故用 fetch 取 blob，再造一个临时 <a> 点一下。
+ * 文件名从 Content-Disposition 的 filename* 里取（都是中文名）。
+ */
+async function download(btn, url) {
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '导出中…';
+  try {
+    const r = await fetch(url, { headers: hdr() });
+    if (!r.ok) {
+      let msg = 'HTTP ' + r.status;
+      try { const j = await r.json(); if (j && j.detail) msg = j.detail; } catch (_) {}
+      throw new Error(msg);
+    }
+    const blob = await r.blob();
+    const name = filenameOf(r.headers.get('content-disposition')) || 'chat.txt';
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // 立刻 revoke 会打断还没开始的下载。延时释放，并且只持有 URL 字符串
+    // 而不是整个 <a>（后者会把节点多留 10 秒）。
+    setTimeout(() => URL.revokeObjectURL(href), 10000);
+    toast('已导出 ' + name, 'ok');
+  } catch (e) {
+    toast('导出失败：' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+function filenameOf(disposition) {
+  if (!disposition) return '';
+  const m = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (m) { try { return decodeURIComponent(m[1]); } catch (_) { return ''; } }
+  const m2 = /filename="([^"]*)"/i.exec(disposition);
+  return m2 ? m2[1] : '';
+}
+
+// 后端存/传的都是 UTC，展示按德国时间 —— 与本项目其他页面的 fmtDE 一致。
+// 不用浏览器本地时区：手机在别的时区打开时会和其他页面对不上号。
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('zh-CN', {
+    timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  });
+}
+
+function fmtSize(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+/**
+ * 弹窗。body 可以是 HTML 字符串，也可以是已经建好的 DOM 节点 ——
+ * 凡是内容里含用户数据（资料名、文件路径、文件正文）的一律传节点，
+ * 免得再去纠结转义。backBtn 传一个 {text, onClick} 就会渲成返回按钮。
+ */
+function openModal(title, body, backBtn) {
+  closeModal();
+  const mask = document.createElement('div');
+  mask.className = 'mask';
+  mask.id = 'tv-modal';
+
+  const box = document.createElement('div');
+  box.className = 'modal';
+
+  const h = document.createElement('h4');
+  h.innerHTML = title;           // 调用方已转义
+  const sp = document.createElement('span');
+  sp.className = 'sp';
+  if (backBtn) {
+    const b = document.createElement('button');
+    b.className = 'btn btn-sm';
+    b.dataset.keep = '1';
+    b.textContent = backBtn.text;
+    b.addEventListener('click', backBtn.onClick);
+    sp.appendChild(b);
+    sp.appendChild(document.createTextNode(' '));
+  }
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn btn-sm';
+  closeBtn.dataset.keep = '1';
+  closeBtn.textContent = '关闭';
+  closeBtn.addEventListener('click', closeModal);
+  sp.appendChild(closeBtn);
+  h.appendChild(sp);
+  box.appendChild(h);
+
+  if (body instanceof Node) box.appendChild(body);
+  else { const d = document.createElement('div'); d.innerHTML = body; box.appendChild(d); }
+
+  mask.appendChild(box);
+  mask.onclick = ev => { if (ev.target === mask) closeModal(); };
+  document.body.appendChild(mask);
+}
+function closeModal() {
+  const m = document.getElementById('tv-modal');
+  if (m) m.remove();
+}
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeModal(); });
+
+// ══════════ 聊天记录总表 ══════════
+
+let overview = null;         // 后端原样返回
+let cmRows = [];             // 摊平后的全部记录
+let cmSel = new Set();       // 选中项的 key
+let cmSort = { by: 'user_messages', asc: true };  // 默认把「我一句没说」顶上来
+let cmOps = { reachable: false, lock_hours: 72, remote: '' };
+
+// 一份记录的唯一键。卡名 + 文件名 —— 不同卡下可以有同名文件。
+function cmKey(r) { return r.card + '\u0000' + r.file; }
+
+async function loadOverview(refresh) {
+  const body = document.getElementById('cm-body');
+  try {
+    overview = await api('GET', '/api/tavern/chats/overview' + (refresh ? '?refresh=true' : ''));
+  } catch (e) {
+    body.innerHTML = '<div class="empty">载入失败：' + esc(e.message) + '</div>';
+    return;
+  }
+  cmRows = [];
+  (overview.cards || []).forEach(c => {
+    (c.chats || []).forEach(ch => cmRows.push(Object.assign({ orphan: c.orphan }, ch)));
+  });
+  // 选中项按 key 保留 —— 刷新后仍然选着，否则删一批就得重勾一批
+  const valid = new Set(cmRows.map(cmKey));
+  cmSel.forEach(k => { if (!valid.has(k)) cmSel.delete(k); });
+
+  const t = overview.totals || {};
+  document.getElementById('cm-count').textContent = (t.chats || 0) + ' 份';
+  document.getElementById('cm-stats').innerHTML =
+    '<span>共 <b>' + (t.chats || 0) + '</b> 份记录，分布在 <b>' + (t.cards_with_chats || 0) + '</b> 张卡</span>' +
+    '<span>总楼层 <b>' + (t.messages || 0) + '</b>，其中我说了 <b>' + (t.user_messages || 0) + '</b> 句</span>' +
+    '<span>占用 <b>' + fmtSize(t.size || 0) + '</b></span>' +
+    (t.never_replied ? '<span class="cm-zero">「我一句没说」' + t.never_replied + ' 份</span>' : '') +
+    '<span style="color:var(--grey)">另有 ' + (t.cards_never_chatted || 0) + ' 张卡从没聊过</span>';
+  if (refresh) toast('已重新扫描聊天记录', 'ok');
+  renderOverview();
+}
+
+async function loadOpsStatus() {
+  try { cmOps = await api('GET', '/api/tavern/chats/ops-status'); }
+  catch (e) { cmOps = { reachable: false, error: e.message, lock_hours: 72 }; }
+  const el = document.getElementById('cm-ops-state');
+  if (cmOps.reachable) {
+    el.innerHTML = '<span class="badge ok">酒馆可写</span>';
+    el.title = '重命名/删除走酒馆 API：' + cmOps.base;
+  } else {
+    el.innerHTML = '<span class="badge err">酒馆不可达</span>';
+    el.title = '重命名与删除不可用：' + (cmOps.error || '') +
+               '\n（导出与同步不受影响，它们只读文件）';
+  }
+}
+
+function cmFiltered() {
+  const q = (document.getElementById('cm-q').value || '').trim().toLowerCase();
+  const onlyJunk = document.getElementById('cm-only-junk').checked;
+  return cmRows.filter(r => {
+    if (onlyJunk && r.user_messages > 0) return false;
+    if (!q) return true;
+    return r.card.toLowerCase().includes(q) || r.title.toLowerCase().includes(q);
+  });
+}
+
+function cmSortRows(rows) {
+  const by = cmSort.by, sign = cmSort.asc ? 1 : -1;
+  return rows.slice().sort((a, b) => {
+    let x = a[by], y = b[by];
+    if (by === 'card' || by === 'title') {
+      const c = String(x).localeCompare(String(y), 'zh');
+      return c ? c * sign : 0;
+    }
+    if (x === y) {
+      // 同值时按卡名稳定排序，免得每次渲染顺序都在跳
+      return String(a.card).localeCompare(String(b.card), 'zh');
+    }
+    return (x < y ? -1 : 1) * sign;
+  });
+}
+
+function cmSetSort(by) {
+  if (cmSort.by === by) cmSort.asc = !cmSort.asc;
+  // 数值列默认降序（想看最大的），名称与「我说了几句」默认升序
+  else cmSort = { by: by, asc: by === 'card' || by === 'title' || by === 'user_messages' };
+  renderOverview();
+}
+
+function renderOverview() {
+  const body = document.getElementById('cm-body');
+  if (!overview) return;
+  const rows = cmSortRows(cmFiltered());
+  document.getElementById('cm-shown').textContent =
+    rows.length === cmRows.length ? '' : '筛出 ' + rows.length + ' / ' + cmRows.length + ' 份';
+
+  if (!cmRows.length) {
+    body.innerHTML = '<div class="empty">酒馆里还没有任何聊天记录。</div>';
+    return;
+  }
+  if (!rows.length) {
+    body.innerHTML = '<div class="empty">没有符合条件的记录。</div>';
+    return;
+  }
+
+  const grouped = document.getElementById('cm-group').checked;
+  const wrap = document.createElement('div');
+  wrap.className = 'cm-wrap';
+  const table = document.createElement('table');
+  table.className = 'cm';
+
+  // ── 表头 ──
+  const cols = [
+    { k: '', label: '', sortable: false },
+    { k: 'card', label: '角色卡' },
+    { k: 'title', label: '记录名' },
+    { k: 'messages', label: '楼层' },
+    { k: 'user_messages', label: '我说了' },
+    { k: 'size', label: '大小' },
+    { k: 'modified', label: '最后修改' },
+    { k: '', label: '', sortable: false }
+  ];
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  cols.forEach(c => {
+    const th = document.createElement('th');
+    if (c.k === '' && !c.label) {
+      // 第一列放全选框
+      if (cols.indexOf(c) === 0) {
+        const all = document.createElement('input');
+        all.type = 'checkbox';
+        all.title = '全选当前筛选结果';
+        all.checked = rows.length > 0 && rows.every(r => cmSel.has(cmKey(r)));
+        all.addEventListener('change', () => {
+          rows.forEach(r => all.checked ? cmSel.add(cmKey(r)) : cmSel.delete(cmKey(r)));
+          renderOverview();
+        });
+        th.appendChild(all);
+      }
+    } else {
+      th.textContent = c.label;
+      if (c.sortable !== false) {
+        th.className = 'sortable' + (cmSort.by === c.k ? ' on' : '');
+        if (cmSort.by === c.k) th.textContent += cmSort.asc ? ' ▲' : ' ▼';
+        th.addEventListener('click', () => cmSetSort(c.k));
+      }
+    }
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  let lastCard = null;
+  rows.forEach(r => {
+    if (grouped && r.card !== lastCard) {
+      lastCard = r.card;
+      const g = document.createElement('tr');
+      g.className = 'cm-group';
+      const td = document.createElement('td');
+      td.colSpan = cols.length;
+      const n = cmRows.filter(x => x.card === r.card).length;
+      const msgs = cmRows.filter(x => x.card === r.card)
+                         .reduce((s, x) => s + x.messages, 0);
+      td.textContent = '🃏 ' + r.card + '　—　' + n + ' 份 · ' + msgs + ' 层';
+      g.appendChild(td);
+      tbody.appendChild(g);
+    }
+    tbody.appendChild(cmRow(r, grouped));
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  body.innerHTML = '';
+  body.appendChild(wrap);
+  body.appendChild(cmSelBar());
+}
+
+function cmRow(r, grouped) {
+  const key = cmKey(r);
+  const tr = document.createElement('tr');
+  if (cmSel.has(key)) tr.className = 'sel';
+
+  // ① 选择
+  const tdSel = document.createElement('td');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = cmSel.has(key);
+  cb.addEventListener('change', () => {
+    cb.checked ? cmSel.add(key) : cmSel.delete(key);
+    tr.className = cb.checked ? 'sel' : '';
+    refreshSelBar();
+  });
+  tdSel.appendChild(cb);
+  tr.appendChild(tdSel);
+
+  // ② 角色卡
+  const tdCard = document.createElement('td');
+  tdCard.className = 'cm-card';
+  tdCard.textContent = grouped ? '' : r.card;
+  if (r.orphan) {
+    const b = document.createElement('span');
+    b.className = 'badge err';
+    b.textContent = '卡已删';
+    b.title = '酒馆里已经没有这张卡了，这些记录是孤儿';
+    tdCard.appendChild(document.createTextNode(' '));
+    tdCard.appendChild(b);
+  }
+  tr.appendChild(tdCard);
+
+  // ③ 记录名（点击预览）
+  const tdName = document.createElement('td');
+  const nm = document.createElement('span');
+  nm.className = 'cm-title';
+  nm.textContent = r.title;       // 任意文本，只走 textContent
+  nm.title = '点击预览';
+  nm.addEventListener('click', () => previewChat(r.card, r.file));
+  tdName.appendChild(nm);
+  if (r.is_current) {
+    const b = document.createElement('span');
+    b.className = 'badge';
+    b.textContent = '默认会话';
+    b.title = '下次在酒馆里打开这张卡时，默认载入的就是这一份（不影响删除）';
+    tdName.appendChild(document.createTextNode(' '));
+    tdName.appendChild(b);
+  }
+  tr.appendChild(tdName);
+
+  // ④ 楼层 ⑤ 我说了 ⑥ 大小 ⑦ 时间
+  const tdMsg = document.createElement('td');
+  tdMsg.className = 'num';
+  tdMsg.textContent = r.messages;
+  tr.appendChild(tdMsg);
+
+  const tdUser = document.createElement('td');
+  tdUser.className = 'num' + (r.user_messages === 0 ? ' cm-zero' : '');
+  tdUser.textContent = r.user_messages;
+  if (r.user_messages === 0) tdUser.title = '这盘对话我一句话都没说过 —— 大概率可以删';
+  tr.appendChild(tdUser);
+
+  const tdSize = document.createElement('td');
+  tdSize.className = 'num';
+  tdSize.textContent = fmtSize(r.size);
+  tr.appendChild(tdSize);
+
+  const tdTime = document.createElement('td');
+  tdTime.className = 'num';
+  tdTime.textContent = fmtTime(r.modified);
+  tr.appendChild(tdTime);
+
+  // ⑧ 操作
+  const tdActs = document.createElement('td');
+  tdActs.className = 'acts';
+
+  const dl = document.createElement('button');
+  dl.className = 'btn btn-sm';
+  dl.dataset.keep = '1';
+  dl.textContent = '⬇';
+  dl.title = '按当前格式导出这一份';
+  dl.addEventListener('click', () => download(dl,
+    '/api/tavern/chats/export?name=' + encodeURIComponent(r.card) +
+    '&file=' + encodeURIComponent(r.file) + '&format=' + encodeURIComponent(curFmt())));
+  tdActs.appendChild(dl);
+
+  const rn = document.createElement('button');
+  rn.className = 'btn btn-sm';
+  rn.textContent = '✏️';
+  rn.title = cmOps.reachable ? '重命名' : '酒馆不可达，无法重命名';
+  rn.disabled = !cmOps.reachable;
+  rn.addEventListener('click', () => renameChat(r));
+  tdActs.appendChild(rn);
+
+  tr.appendChild(tdActs);
+  return tr;
+}
+
+function refreshSelBar() {
+  const old = document.querySelector('.cm-sel-bar');
+  if (old) old.replaceWith(cmSelBar());
+}
+
+function cmSelBar() {
+  const bar = document.createElement('div');
+  bar.className = 'cm-sel-bar';
+  const n = cmSel.size;
+  const picked = cmRows.filter(r => cmSel.has(cmKey(r)));
+  const bytes = picked.reduce((s, r) => s + r.size, 0);
+
+  const info = document.createElement('span');
+  info.className = 'muted';
+  info.textContent = n ? ('已选 ' + n + ' 份 · ' + fmtSize(bytes)) : '勾选记录后可批量同步或删除';
+  bar.appendChild(info);
+
+  const sp = document.createElement('span');
+  sp.style.flex = '1';
+  bar.appendChild(sp);
+
+  if (n) {
+    const clear = document.createElement('button');
+    clear.className = 'btn btn-sm';
+    clear.textContent = '清空选择';
+    clear.addEventListener('click', () => { cmSel.clear(); renderOverview(); });
+    bar.appendChild(clear);
+
+    const sync = document.createElement('button');
+    sync.className = 'btn btn-sm btn-success';
+    sync.textContent = '☁ 同步到网盘';
+    sync.title = '原样上传 jsonl 到 ' + (cmOps.remote || 'rclone');
+    sync.addEventListener('click', () => syncSelected(sync));
+    bar.appendChild(sync);
+
+    const del = document.createElement('button');
+    del.className = 'btn btn-sm btn-danger';
+    del.textContent = '🗑 删除';
+    del.disabled = !cmOps.reachable;
+    del.title = cmOps.reachable ? '不可恢复' : '酒馆不可达，无法删除';
+    del.addEventListener('click', () => deleteSelected(del));
+    bar.appendChild(del);
+  }
+  return bar;
+}
+
+// ── 写操作 ──
+
+async function renameChat(r) {
+  const cur = r.title;
+  const next = prompt('重命名这份聊天记录：', cur);
+  if (next === null) return;
+  if (!next.trim() || next.trim() === cur) return;
+  try {
+    await api('POST', '/api/tavern/chats/rename',
+              { card: r.card, file: r.file, title: next.trim() });
+    toast('已重命名', 'ok');
+    await loadOverview(false);
+  } catch (e) {
+    toast('重命名失败：' + e.message, 'err');
+  }
+}
+
+async function syncSelected(btn) {
+  const items = cmRows.filter(r => cmSel.has(cmKey(r)))
+                      .map(r => ({ card: r.card, file: r.file }));
+  if (!items.length) return;
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '同步中…';
+  try {
+    const d = await api('POST', '/api/tavern/chats/sync', { items: items });
+    const ok = (d.synced || []).length, bad = (d.failed || []).length;
+    toast('已同步 ' + ok + ' 份（' + fmtSize(d.bytes || 0) + '）' +
+          (bad ? '，失败 ' + bad + ' 份' : ''), bad ? 'err' : 'ok');
+    if (bad) showOut((d.failed || []).map(f => '✗ ' + f.card + ' / ' + f.file + '：' + f.error).join('\n'), 'err');
+    else showOut('已同步到 ' + d.remote + '\n' +
+                 (d.synced || []).map(s => '✓ ' + s.dest).join('\n'), 'ok');
+  } catch (e) {
+    toast('同步失败：' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+async function deleteSelected(btn) {
+  const picked = cmRows.filter(r => cmSel.has(cmKey(r)));
+  if (!picked.length) return;
+  // 删除不可恢复，所以把要删的东西原样列给用户看，而不只给个数字
+  const list = picked.slice(0, 20)
+    .map(r => '· ' + r.card + ' / ' + r.title + '（' + r.messages + ' 层，我说了 ' + r.user_messages + ' 句）')
+    .join('\n');
+  const more = picked.length > 20 ? '\n…以及另外 ' + (picked.length - 20) + ' 份' : '';
+  if (!confirm('确定删除以下 ' + picked.length + ' 份聊天记录？\n\n' + list + more +
+               '\n\n⚠️ 删除后无法恢复。要留底请先「☁ 同步到网盘」。')) return;
+
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '删除中…';
+  try {
+    const d = await api('POST', '/api/tavern/chats/delete',
+                        { items: picked.map(r => ({ card: r.card, file: r.file })) });
+    const ok = (d.deleted || []).length, bad = (d.failed || []).length;
+    toast('已删除 ' + ok + ' 份，释放 ' + fmtSize(d.freed || 0) +
+          (bad ? '，' + bad + ' 份未删' : ''), bad ? 'err' : 'ok');
+    if (bad) {
+      showOut('以下记录未被删除：\n' +
+        (d.failed || []).map(f => '✗ ' + f.card + ' / ' + f.file + '\n   ' + f.error).join('\n'), 'err');
+    }
+    cmSel.clear();
+    await loadOverview(false);
+    await loadEntries();     // 管理列表里的「💬 份数」跟着变
+  } catch (e) {
+    toast('删除失败：' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+// ══════════ 初始化 ══════════
+
+async function reloadCatalog() { await loadCatalog(true); doSearch(); }
+
+async function loadCatalog(refresh) {
+  try {
+    const d = await api('GET', '/api/tavern/catalog' + (refresh ? '?refresh=true' : ''));
+    const c = d.counts || {};
+    lastHdrInfo = TYPES.map(t => TYPE_ICON[t] + ' ' + t + ' ' + (c[t] || 0)).join('　');
+    document.getElementById('hdr-info').textContent = lastHdrInfo;
+
+    // 目录缺失时说清楚是哪一个 —— 否则用户只会看到「搜不到东西」
+    const missing = [];
+    const av = (d.availability || {}).types || {};
+    Object.keys(av).forEach(t => { if (!av[t].exists) missing.push(t + '（' + av[t].path + '）'); });
+    const envPanel = document.getElementById('env-panel');
+    if (missing.length) {
+      envPanel.style.display = '';
+      document.getElementById('env-body').innerHTML =
+        '以下酒馆目录不存在，对应类型会搜不到任何东西：<br>' +
+        missing.map(m => '· ' + esc(m)).join('<br>') +
+        '<br><br>若酒馆装在别处，请在 .env 里设置 <code class="mono">tavern_data_dir</code> / <code class="mono">tavern_user</code> 后重启服务。';
+    } else {
+      envPanel.style.display = 'none';
+    }
+    if (refresh) toast('已重新扫描酒馆资料', 'ok');
+  } catch (e) {
+    document.getElementById('hdr-info').textContent = '扫描失败：' + e.message;
+  }
+}
+
+async function init() {
+  if (typeof mountTokenBar === 'function') mountTokenBar();
+  renderChips();
+  await loadEntries();
+  await loadCatalog(false);
+  // 写通道状态要先拿到：总表渲染时据它决定删除/重命名按钮是否可用
+  await loadOpsStatus();
+  await loadOverview(false);
+  try {
+    const s = await api('GET', '/api/tavern/status');
+    if (!s.script_exists) {
+      document.getElementById('env-panel').style.display = '';
+      document.getElementById('env-body').innerHTML =
+        '找不到同步脚本 <code class="mono">' + esc(s.yaml_path.replace(/tavern_sync\.yaml$/, 'ts.mjs')) +
+        '</code>，拉取/推送都会失败。请检查 .env 的 <code class="mono">tavern_sync_dir</code>。';
+    }
+  } catch (e) { /* status 拿不到不影响主功能 */ }
+}
+
+init();
+</script>
+</body>
+</html>

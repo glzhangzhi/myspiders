@@ -1,0 +1,25 @@
+{
+  "name": "计时",
+  "short_name": "计时",
+  "description": "时间记录与估算训练（手机端只负责记录）",
+  "id": "/timelog",
+  "start_url": "/timelog",
+  "scope": "/timelog",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1c1a19",
+  "theme_color": "#1c1a19",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "/timelog/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/timelog/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "立即开始", "short_name": "立即开始", "url": "/timelog?action=start-now",
+      "icons": [{ "src": "/timelog/icon-192.png", "sizes": "192x192" }] },
+    { "name": "暂停 / 恢复当前任务", "short_name": "暂停/恢复", "url": "/timelog?action=toggle",
+      "icons": [{ "src": "/timelog/icon-192.png", "sizes": "192x192" }] },
+    { "name": "结束当前任务", "short_name": "结束", "url": "/timelog?action=end",
+      "icons": [{ "src": "/timelog/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

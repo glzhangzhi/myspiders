@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM 用量</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+<link rel="stylesheet" href="/dashboard/theme.css">
+<style>
+/* 命中/未命中/输出是本页的业务语义，不是主题色，所以留在本地。 */
+:root { --miss:var(--red); --hit:var(--success); --out:var(--blue); }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; }
+
+header { display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 24px; border-bottom:1px solid var(--border); background:var(--surface);
+  position:sticky; top:0; z-index:20; flex-wrap:wrap; }
+header h1 { font-size:19px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.header-right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+main.page { padding:16px 20px 48px; max-width:1100px; margin:0 auto; }
+/* 单独打开时 common.js 的 token 条浮在右上角，给它留出位置 */
+html:not(.embedded) header { padding-right:300px; }
+
+.btn { padding:5px 14px; border-radius:6px; font-size:12px; cursor:pointer;
+  border:1px solid var(--border); background:transparent; color:var(--text-dim);
+  transition:all .15s; white-space:nowrap; font-family:inherit; }
+.btn:hover { color:var(--text); border-color:var(--text-dim); }
+.btn:disabled { opacity:.35; cursor:not-allowed; }
+select { padding:5px 8px; border-radius:6px; font-size:12px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text); font-family:inherit; }
+label.chk { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-dim); cursor:pointer; }
+
+.seg { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.seg button { padding:6px 14px; font-size:12px; background:transparent; border:0;
+  color:var(--text-dim); cursor:pointer; font-family:inherit; border-right:1px solid var(--border); }
+.seg button:last-child { border-right:0; }
+.seg button.active { background:var(--blue); color:#fff; }
+.seg button:hover:not(.active) { background:var(--surface2); color:var(--text); }
+
+.window-badge { display:flex; align-items:center; gap:7px; padding:5px 12px;
+  border-radius:20px; font-size:12px; font-weight:500; border:1px solid; }
+.window-badge.peak { background:rgba(248,81,73,.12); border-color:var(--red); color:var(--red); }
+.window-badge.off  { background:rgba(63,185,80,.12); border-color:var(--green); color:var(--green); }
+.window-badge .dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+.window-badge .sub { color:var(--text-dim); font-weight:400; }
+
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:16px 18px; margin-bottom:12px; }
+.panel h3 { font-size:13px; font-weight:600; margin-bottom:12px; color:var(--text-dim);
+  text-transform:uppercase; letter-spacing:.4px; }
+
+.hero { display:flex; align-items:baseline; gap:18px; flex-wrap:wrap; }
+.hero .value { font-size:40px; font-weight:650; font-variant-numeric:tabular-nums; line-height:1.1; }
+.hero .sub { font-size:13px; color:var(--text-dim); line-height:1.6; }
+.hero .sub b { color:var(--text); font-weight:600; }
+
+/* flex-basis:0 + flex-grow 才是按数值等比分配宽度；窄段不渲染文字，min-width:0 允许收缩。 */
+.compose { display:flex; height:32px; border-radius:7px; overflow:hidden; margin:14px 0 10px;
+  background:var(--surface2); }
+.compose div { display:flex; align-items:center; justify-content:center; flex:0 0 0;
+  font-size:11px; font-weight:600; color:#fff; transition:flex-grow .3s;
+  min-width:0; overflow:hidden; white-space:nowrap; border-right:1px solid rgba(13,17,23,.55); }
+.compose div:last-child { border-right:0; }
+.legend { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.legend .item { border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+.legend .k { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); }
+.legend i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+.legend .v { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:4px; }
+.legend .t { font-size:11px; color:var(--text-dim); margin-top:2px; }
+@media (max-width:640px) { .legend { grid-template-columns:1fr; } }
+
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:8px 10px; color:var(--text-dim); font-weight:500;
+  border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+td { padding:9px 10px; border-bottom:1px solid rgba(48,54,61,.5); font-variant-numeric:tabular-nums; }
+tr:last-child td { border-bottom:0; }
+.num { text-align:right; }
+.dim { color:var(--text-dim); }
+.mini { display:flex; height:8px; border-radius:4px; overflow:hidden; min-width:120px; background:var(--surface2); }
+.mini div { flex:0 0 0; min-width:0; }
+.stale { color:var(--red); }
+.cat-row { cursor:pointer; }
+.cat-row:hover { background:var(--surface2); }
+.cat-row td:first-child::before { content:'▸'; display:inline-block; width:14px; color:var(--text-dim); transition:transform .15s; }
+.cat-row.open td:first-child::before { transform:rotate(90deg); }
+.proj-row td { font-size:12.5px; }
+.proj-row td:first-child { padding-left:34px; }
+.proj-row.hidden { display:none; }
+.bar { height:6px; border-radius:3px; background:var(--blue); min-width:2px; }
+.panel h3 .hint { text-transform:none; letter-spacing:0; font-weight:400; }
+
+/* 每日柱状图：纯 CSS，与站内其他页一样不引图表库。 */
+.daily { position:relative; display:flex; align-items:flex-end; gap:3px; height:150px;
+  padding-top:16px; border-bottom:1px solid var(--border); }
+.daily .col { flex:1 1 0; min-width:0; height:100%; display:flex; flex-direction:column-reverse;
+  cursor:default; border-radius:3px 3px 0 0; }
+.daily .col:hover { background:var(--surface2); }
+.daily .col div { flex:0 0 auto; min-height:0; }
+.daily .col div:last-child { border-radius:3px 3px 0 0; }
+.daily .col.empty::after { content:''; display:block; height:2px; background:var(--border); }
+.daily .avg { position:absolute; left:0; right:0; border-top:1px dashed var(--text-dim); opacity:.55; pointer-events:none; }
+.daily .avg span, .daily .ymax { position:absolute; right:0; font-size:10.5px; color:var(--text-dim);
+  background:var(--surface); padding:0 3px; }
+.daily .avg span { top:-8px; }
+.daily .ymax { top:0; left:0; right:auto; }
+.daily-x { display:flex; gap:3px; margin-top:4px; }
+.daily-x span { flex:1 1 0; min-width:0; text-align:center; font-size:10px; color:var(--text-dim); overflow:hidden; }
+.daily-x span.we { color:var(--text); font-weight:600; }
+.daily-legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-dim); }
+.daily-legend i { width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-1px; }
+
+.note { font-size:11.5px; color:var(--text-dim); line-height:1.7; }
+.note b { color:var(--text); font-weight:600; }
+.note a { color:var(--blue); text-decoration:underline; }
+</style>
+<!-- 被 index.html 的 iframe 内嵌时去掉自己的标题（外层侧边栏已经写着「我在哪」）。 -->
+<script>try{if(window.self!==window.top)document.documentElement.classList.add('embedded');}catch(e){document.documentElement.classList.add('embedded');}</script>
+<style>
+html.embedded header h1 { display: none; }
+html.embedded header { justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💰 LLM 用量</h1>
+  <div class="header-right">
+    <div id="windowBadge" class="window-badge off"><span class="dot"></span><span>载入中…</span></div>
+    <select id="monthSel" title="德国时间自然月"></select>
+    <div class="seg" id="targetSeg" title="非 DeepSeek 的调用（DSH 走 Claude 的部分）按哪个模型估价">
+      <button data-t="deepseek-flash" class="active">Flash</button>
+      <button data-t="deepseek-v4-pro">Pro</button>
+    </div>
+    <label class="chk" title="勾选后，本来就跑在 DeepSeek 上的调用（酒馆、梨园）也按所选模型重算">
+      <input type="checkbox" id="forceChk">全部按所选模型
+    </label>
+    <button class="btn" id="btnIngest" title="立即导入 DSH / 酒馆 / 梨园 的新记录">↻ 导入</button>
+  </div>
+</header>
+
+<main class="page">
+  <div class="panel">
+    <h3 id="heroTitle">本月估算花费</h3>
+    <div class="hero">
+      <div class="value" id="total">—</div>
+      <div class="sub" id="totalSub"></div>
+    </div>
+    <div class="compose" id="compose" title="按花费占比；按 token 数看的比例见上方「缓存命中率」"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="panel">
+    <h3>每日花费 <span class="hint dim">· 德国时间自然日，按来源堆叠；粗体日期是周末，悬停看明细</span></h3>
+    <div class="daily" id="daily"></div>
+    <div class="daily-x" id="dailyX"></div>
+    <div class="daily-legend" id="dailyLegend"></div>
+  </div>
+
+  <div class="panel">
+    <h3>按来源</h3>
+    <table>
+      <thead><tr>
+        <th>来源</th><th class="num">花费</th><th class="num">占比</th><th class="num">请求</th>
+        <th class="num" title="命中 ÷ 全部输入；Claude 的写缓存算作没命中">缓存命中率</th>
+        <th>花费构成：命中 / 未命中 / 输出</th><th class="num">最近一条</th>
+      </tr></thead>
+      <tbody id="sources"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>DSH 按项目 <span class="hint dim">· 项目 = 工作目录最后一级文件夹，点大类展开；分类表在 app/services/llm_projects.py</span></h3>
+    <table>
+      <thead><tr>
+        <th>大类 / 项目</th><th class="num">花费</th><th style="width:22%">占 DSH</th><th class="num">请求</th>
+        <th class="num">缓存命中率</th><th>机器</th>
+      </tr></thead>
+      <tbody id="projects"></tbody>
+    </table>
+  </div>
+
+  <div class="panel note">
+    <b>口径</b> ·
+    每次调用按它<b>实际发生的 UTC 时刻</b>落到 DeepSeek 峰/谷时段计价（峰时：工作日 UTC 01–04、06–10 点；其余与周末为谷时，谷价 = 峰价 ÷ 2）。
+    中国公休日按峰时算，<b>只会偏高</b>。
+    酒馆、梨园、DSH 里走 DeepSeek 的调用本来就跑在 DeepSeek 上，默认按它们实际用的模型计价（真实账）；DSH 走 Claude 订阅的那部分按上方开关选的模型<b>估算</b>，
+    Claude 与 DeepSeek 分词不同，token 数按 1:1 换算；Claude 的「写缓存」按 DeepSeek 的未命中计。
+    输出已含思考 token。价格以 <a href="https://api-docs.deepseek.com/quick_start/pricing/" target="_blank" rel="noopener">官方价格页</a> 为准。
+  </div>
+</main>
+
+<script src="/legacy/common.js"></script>
+<script>
+const SOURCE_LABEL = {
+  dsh: ['🧰 DSH · Claude', '估算：换成 DeepSeek 要花的钱'],
+  'dsh-deepseek': ['🧰 DSH · DeepSeek', '实际花费'],
+  tavern: ['🍺 酒馆', '实际花费'],
+  liyuan: ['🎭 梨园', '实际花费'],
+};
+const PARTS = [
+  { k: 'hit', label: '输入 · 命中', color: 'var(--hit)' },
+  { k: 'miss', label: '输入 · 未命中', color: 'var(--miss)' },
+  { k: 'output', label: '输出', color: 'var(--out)' },
+];
+// 每日图的来源配色。--green 是全站「成功/在线」的状态色，不拿来当数据色。
+const SOURCE_COLOR = { dsh: 'var(--blue)', 'dsh-deepseek': 'var(--purple)', tavern: 'var(--yellow)', liyuan: 'var(--accent)' };
+const state = { month: null, target: localStorage.getItem('llmUsage.target') || 'deepseek-flash',
+                force: localStorage.getItem('llmUsage.force') === '1' };
+
+const fmtUSD = v => '$' + (v || 0).toFixed((v || 0) >= 100 ? 0 : 2);
+const fmtN = v => (v || 0).toLocaleString();
+const fmtTok = v => v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : String(v || 0);
+const pct = v => (v || 0).toFixed(1) + '%';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function api(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  const tk = getToken();
+  if (tk) headers['x-token'] = tk;
+  const res = await fetch(path, Object.assign({}, opts, { headers }));
+  if (!res.ok) throw new Error((await res.text()).slice(0, 200));
+  return res.json();
+}
+
+function ago(iso) {
+  if (!iso) return { text: '无记录', stale: true };
+  const min = (Date.now() - new Date(iso)) / 60000;
+  const text = min < 60 ? `${Math.max(0, Math.round(min))} 分钟前` : min < 1440 ? `${Math.round(min / 60)} 小时前` : `${Math.round(min / 1440)} 天前`;
+  return { text, stale: min > 3 * 1440 };
+}
+
+function renderWindow(w) {
+  const el = document.getElementById('windowBadge');
+  if (!w) return;
+  const h = Math.floor(w.minutes_left / 60), m = w.minutes_left % 60;
+  el.className = 'window-badge ' + (w.peak_now ? 'peak' : 'off');
+  el.innerHTML = `<span class="dot"></span><span>DeepSeek 现在是<b>${w.peak_now ? '峰时' : '谷时'}</b>
+    <span class="sub">· ${h > 0 ? h + ' 小时 ' : ''}${m} 分后切换</span></span>`;
+}
+
+function render(s) {
+  const t = s.total;
+  document.getElementById('heroTitle').textContent = `${s.month} 估算花费（USD）`;
+  document.getElementById('total').textContent = fmtUSD(t.usd);
+  const peakShare = t.priced_requests ? t.peak_requests / t.priced_requests * 100 : 0;
+  document.getElementById('totalSub').innerHTML =
+    `<b>${fmtN(t.requests)}</b> 次请求 · 缓存命中率 <b>${t.hit_rate == null ? '—' : pct(t.hit_rate)}</b> · 其中 <b>${pct(peakShare)}</b> 落在峰时` +
+    (t.requests - t.priced_requests > 0 ? ` · <span class="dim">${fmtN(t.requests - t.priced_requests)} 次无 token（中止的调用，只计次数）</span>` : '') +
+    `<br><span class="dim">DSH 的 Claude 调用按 <b>${s.target === 'deepseek-v4-pro' ? 'deepseek-v4-pro' : 'deepseek-flash'}</b> 估价${s.force ? '；酒馆/梨园也按此模型重算' : ''}</span>`;
+
+  const c = t.composition;
+  document.getElementById('compose').innerHTML = PARTS.map(p =>
+    `<div style="background:${p.color};flex-grow:${c[p.k].pct}">${c[p.k].pct >= 8 ? pct(c[p.k].pct) : ''}</div>`).join('');
+  document.getElementById('legend').innerHTML = PARTS.map(p => `
+    <div class="item">
+      <div class="k"><i style="background:${p.color}"></i>${p.label}</div>
+      <div class="v">${fmtUSD(c[p.k].usd)}</div>
+      <div class="t">${fmtTok(c[p.k].tokens)} token</div>
+    </div>`).join('');
+
+  document.getElementById('sources').innerHTML = s.by_source.map(b => {
+    const seen = ago(s.last_seen[b.source]);
+    const bc = b.composition;
+    return `<tr>
+      <td>${esc((SOURCE_LABEL[b.source] || [b.source])[0])}<div class="dim" style="font-size:11px">${esc((SOURCE_LABEL[b.source] || ['', ''])[1])}</div></td>
+      <td class="num"><b>${fmtUSD(b.usd)}</b></td>
+      <td class="num">${pct(b.share_pct)}</td>
+      <td class="num">${fmtN(b.requests)}</td>
+      <td class="num">${b.hit_rate == null ? '<span class="dim">—</span>' : b.hit_rate.toFixed(1) + '%'}</td>
+      <td><div class="mini" title="命中 ${pct(bc.hit.pct)} / 未命中 ${pct(bc.miss.pct)} / 输出 ${pct(bc.output.pct)}">
+        ${PARTS.map(p => `<div style="background:${p.color};flex-grow:${bc[p.k].pct}"></div>`).join('')}
+      </div><div class="dim" style="font-size:11px;margin-top:3px">${PARTS.map(p => pct(bc[p.k].pct)).join(' / ')}</div></td>
+      <td class="num ${seen.stale ? 'stale' : 'dim'}">${seen.text}</td>
+    </tr>`;
+  }).join('');
+  renderWindow(s.window);
+}
+
+const openCats = new Set(JSON.parse(localStorage.getItem('llmUsage.openCats') || '[]'));
+function renderProjects(p) {
+  const hr = v => v == null ? '<span class="dim">—</span>' : v.toFixed(1) + '%';
+  const max = Math.max(0.0001, ...p.categories.map(c => c.share_pct));
+  const el = document.getElementById('projects');
+  if (!p.categories.length) { el.innerHTML = '<tr><td colspan="6" class="dim">本月 DSH 没有调用</td></tr>'; return; }
+  el.innerHTML = p.categories.map(c => {
+    const open = openCats.has(c.category);
+    return `<tr class="cat-row ${open ? 'open' : ''}" data-cat="${esc(c.category)}">
+      <td><b>${esc(c.category)}</b> <span class="dim" style="font-size:11px">${c.projects.length} 个项目</span></td>
+      <td class="num"><b>${fmtUSD(c.usd)}</b></td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:${c.share_pct / max * 100}%"></div><span class="dim" style="font-size:11px">${pct(c.share_pct)}</span></div></td>
+      <td class="num">${fmtN(c.requests)}</td><td class="num">${hr(c.hit_rate)}</td><td></td>
+    </tr>` + c.projects.map(pr => `<tr class="proj-row ${open ? '' : 'hidden'}" data-parent="${esc(c.category)}">
+      <td>${esc(pr.project)}</td>
+      <td class="num">${fmtUSD(pr.usd)}</td>
+      <td><span class="dim" style="font-size:11px">${pct(pr.share_pct)}</span></td>
+      <td class="num">${fmtN(pr.requests)}</td><td class="num">${hr(pr.hit_rate)}</td>
+      <td class="dim" style="font-size:11px">${pr.machines.map(esc).join('、')}</td>
+    </tr>`).join('');
+  }).join('');
+}
+document.getElementById('projects').onclick = e => {
+  const row = e.target.closest('.cat-row'); if (!row) return;
+  const cat = row.dataset.cat, open = !row.classList.contains('open');
+  row.classList.toggle('open', open);
+  document.querySelectorAll('#projects .proj-row').forEach(r => { if (r.dataset.parent === cat) r.classList.toggle('hidden', !open); });
+  open ? openCats.add(cat) : openCats.delete(cat);
+  localStorage.setItem('llmUsage.openCats', JSON.stringify([...openCats]));
+};
+
+function renderDaily(d) {
+  const el = document.getElementById('daily'), xs = document.getElementById('dailyX');
+  const days = d.days || [];
+  if (!days.length) { el.innerHTML = '<span class="dim">没有数据</span>'; xs.innerHTML = ''; return; }
+  const max = Math.max(0.01, ...days.map(x => x.usd));
+  const used = days.filter(x => x.requests > 0);
+  const avg = days.reduce((a, x) => a + x.usd, 0) / days.length;
+  const order = Object.keys(SOURCE_LABEL);
+  const present = order.filter(k => days.some(x => x.by_source[k] > 0));
+  const wd = ['日', '一', '二', '三', '四', '五', '六'];
+  el.innerHTML = `<span class="ymax">${fmtUSD(max)}</span>` +
+    `<div class="avg" style="bottom:${avg / max * (150 - 16)}px"><span>日均 ${fmtUSD(avg)}</span></div>` +
+    days.map(x => {
+      const dow = new Date(x.date + 'T12:00:00Z').getUTCDay();
+      const lines = [`${x.date}（周${wd[dow]}）  ${fmtUSD(x.usd)}`];
+      if (x.requests) {
+        lines.push(`${fmtN(x.requests)} 次请求 · 缓存命中率 ${x.hit_rate == null ? '—' : pct(x.hit_rate)}`);
+        present.forEach(k => { if (x.by_source[k] > 0) lines.push(`${SOURCE_LABEL[k][0]}  ${fmtUSD(x.by_source[k])}`); });
+      } else lines.push('没有调用');
+      const segs = present.map(k => {
+        const v = x.by_source[k] || 0;
+        return v > 0 ? `<div style="background:${SOURCE_COLOR[k] || 'var(--grey)'};height:${v / max * 100}%"></div>` : '';
+      }).join('');
+      return `<div class="col ${x.requests ? '' : 'empty'}" title="${esc(lines.join('\n'))}">${segs}</div>`;
+    }).join('');
+  xs.innerHTML = days.map(x => {
+    const dow = new Date(x.date + 'T12:00:00Z').getUTCDay();
+    return `<span class="${dow === 0 || dow === 6 ? 'we' : ''}">${+x.date.slice(8)}</span>`;
+  }).join('');
+  document.getElementById('dailyLegend').innerHTML =
+    present.map(k => `<span><i style="background:${SOURCE_COLOR[k] || 'var(--grey)'}"></i>${esc(SOURCE_LABEL[k][0])}</span>`).join('') +
+    `<span>· 有调用 ${used.length} / ${days.length} 天</span>`;
+}
+
+async function load() {
+  const q = new URLSearchParams({ target: state.target, force: state.force ? 'true' : 'false' });
+  if (state.month) q.set('month', state.month);
+  try {
+    const [s, d, p] = await Promise.all([api('/api/llm-usage/summary?' + q), api('/api/llm-usage/daily?' + q),
+                                         api('/api/llm-usage/projects?' + q)]);
+    render(s); renderDaily(d); renderProjects(p);
+  } catch (e) { showToast('加载失败：' + e.message, 'err'); }
+}
+
+async function loadMonths() {
+  const sel = document.getElementById('monthSel');
+  try {
+    const { months } = await api('/api/llm-usage/months');
+    // 本月按德国时间算（与后端一致），而不是浏览器所在时区或 UTC
+    const cur = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).format(new Date());
+    const list = months.includes(cur) ? months : [cur, ...months];
+    sel.innerHTML = list.map(m => `<option value="${m}">${m}</option>`).join('');
+    state.month = state.month || list[0];
+    sel.value = state.month;
+  } catch (e) { /* 月份列表失败不挡主数据 */ }
+}
+
+document.getElementById('monthSel').onchange = e => { state.month = e.target.value; load(); };
+document.getElementById('targetSeg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.target = b.dataset.t; localStorage.setItem('llmUsage.target', state.target);
+  document.querySelectorAll('#targetSeg button').forEach(x => x.classList.toggle('active', x === b));
+  load();
+};
+document.getElementById('forceChk').onchange = e => {
+  state.force = e.target.checked; localStorage.setItem('llmUsage.force', state.force ? '1' : '0'); load();
+};
+document.getElementById('btnIngest').onclick = async function () {
+  this.disabled = true; this.textContent = '导入中…';
+  try {
+    const r = await api('/api/llm-usage/ingest', { method: 'POST' });
+    showToast(`导入完成：${r.files} 个文件，写入 ${r.upserted} 条`, 'ok');
+    await loadMonths(); await load();
+  } catch (e) { showToast('导入失败：' + e.message, 'err'); }
+  this.disabled = false; this.textContent = '↻ 导入';
+};
+
+document.querySelectorAll('#targetSeg button').forEach(x => x.classList.toggle('active', x.dataset.t === state.target));
+document.getElementById('forceChk').checked = state.force;
+mountTokenBar();
+loadMonths().then(load);
+setInterval(load, 60000);
+</script>
+</body>
+</html>

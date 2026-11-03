@@ -1,0 +1,46 @@
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "errCode": 0,
+    "errMsg": "ok",
+    "data": {
+      "BaseResponse": {
+        "Ret": 0,
+        "ErrMsg": {
+          "String": ""
+        }
+      },
+      "infoList": [
+        {
+          "contact": {
+            "username": "v2_7600364ee2c26ebeec00e9b9@finder",
+            "nickname": "我不叫螃蟹.",
+            "headUrl": "https://example.invalid/headUrl/1077032e",
+            "signature": "这是一段测试签名",
+            "coverImgUrl": ""
+          },
+          "highlightNickname": "我不叫<em class=\"highlight\">螃蟹</em>.",
+          "highlightSignature": "这是一段测试签名",
+          "friendFollowCount": 0,
+          "highlightProfession": "测试职业",
+          "reqIndex": 0
+        },
+        {
+          "contact": {
+            "username": "v2_e2e8567bcb2c89a1d8433fc4@finder",
+            "nickname": "辣个螃蟹.海鲜店",
+            "headUrl": "https://example.invalid/headUrl/b83f3144",
+            "signature": "这是一段测试签名",
+            "coverImgUrl": ""
+          },
+          "highlightNickname": "辣个<em class=\"highlight\">螃蟹</em>.海鲜老板娘baby洋",
+          "highlightSignature": "这是一段测试签名",
+          "friendFollowCount": 0,
+          "highlightProfession": "测试职业",
+          "reqIndex": 1
+        }
+      ]
+    }
+  }
+}

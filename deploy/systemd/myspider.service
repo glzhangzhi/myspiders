@@ -1,0 +1,22 @@
+# MySpiders 的 systemd 单元模板。按需改 WorkingDirectory / User，然后：
+#   sudo cp deploy/systemd/myspider.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now myspider
+[Unit]
+Description=MySpiders - personal data collection dashboard
+After=network-online.target mongod.service
+Wants=network-online.target mongod.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/myspiders
+Environment=TZ=Europe/Berlin
+# 只绑本机；对外请放在反向代理 / 隧道后面，并加上访问控制。
+# 用 `python -m app`：它会在 uvicorn 之前打好 SSE 的退出补丁（见 app/__main__.py）。
+ExecStart=/opt/myspiders/.venv/bin/python -m app --host 127.0.0.1 --port 12312
+Restart=always
+RestartSec=5
+TimeoutStopSec=5
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

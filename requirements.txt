@@ -1,0 +1,22 @@
+# 运行时依赖（公开核心 + 公开功能模块）
+fastapi==0.115.12
+uvicorn==0.34.2
+APScheduler==3.11.0
+pydantic-settings==2.9.1
+python-dotenv==1.1.0
+pymongo==4.12.0
+httpx==0.28.1
+requests
+sse-starlette==1.8.2
+python-multipart>=0.0.9
+# Nintendo 抓取用 headless Chromium（装完还要 `playwright install chromium`）
+playwright==1.62.0
+# 奇门遁甲的农历/节气。arm64 没有 wheel，见 README「部署」一节
+sxtwl
+# Nintendo 简→繁搜索，懒加载：未安装时仅该功能报错
+opencc-python-reimplemented
+
+# 测试（仅开发用）：纯函数单测 + 导入 smoke test，不碰 DB
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pyflakes==4.0.1

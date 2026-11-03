@@ -1,0 +1,166 @@
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "errCode": 0,
+    "errMsg": "ok",
+    "data": {
+      "BaseResponse": {
+        "Ret": 0,
+        "ErrMsg": {
+          "String": ""
+        }
+      },
+      "commentInfo": [],
+      "object": {
+        "id": "14819096805414996657",
+        "contact": {
+          "username": "v2_912278925b50787d2e92222b@finder",
+          "nickname": "测试作者6",
+          "headUrl": "https://example.invalid/headUrl/a5363579",
+          "signature": "这是一段测试签名",
+          "coverImgUrl": ""
+        },
+        "objectDesc": {
+          "description": "测试视频描述 #测试话题",
+          "media": [
+            {
+              "url": "https://example.invalid/url/0d6dc5a8",
+              "mediaType": 4,
+              "videoPlayLen": 41,
+              "width": 1080,
+              "height": 1440,
+              "fileSize": 50833261,
+              "spec": [
+                {
+                  "fileFormat": "xWT111",
+                  "width": 720,
+                  "height": 960,
+                  "durationMs": 41901
+                },
+                {
+                  "fileFormat": "xWT112",
+                  "width": 720,
+                  "height": 960,
+                  "durationMs": 41901
+                },
+                {
+                  "fileFormat": "xWT113",
+                  "width": 576,
+                  "height": 768,
+                  "durationMs": 41917
+                },
+                {
+                  "fileFormat": "xWT126",
+                  "width": 720,
+                  "height": 960,
+                  "durationMs": 41901
+                },
+                {
+                  "fileFormat": "xWT127",
+                  "width": 720,
+                  "height": 960,
+                  "durationMs": 41901
+                },
+                {
+                  "fileFormat": "xWT128",
+                  "width": 576,
+                  "height": 768,
+                  "durationMs": 41917
+                }
+              ],
+              "coverUrl": "https://example.invalid/coverUrl/bd3fcf36",
+              "decodeKey": "123456789",
+              "urlToken": "&token=TESTTOKEN"
+            }
+          ],
+          "mediaType": 4
+        },
+        "objectNonceId": "8609277293449234222_0_146_0_0",
+        "source_url": "",
+        "createtime": 1766574001
+      },
+      "commentCount": 193,
+      "nextCheckObjectStatus": 1,
+      "barrageCommentInfo": [],
+      "refObjectList": [],
+      "preloadInfo": {
+        "preloadStrategyId": 17840794003360850000,
+        "globalInfo": {
+          "prevCount": 0,
+          "nextCount": 5,
+          "maxBitRate": 150,
+          "preloadFileSizePercent": 0.25,
+          "preloadFileMinBytes": 0,
+          "preloadMaxConcurrentCount": 1,
+          "megavideoMaxBitRate": 0,
+          "megavideoPrevCount": 1,
+          "megavideoNextCount": 2,
+          "minBufferLength": 10,
+          "maxBufferLength": 10,
+          "minCurrentFeedBufferLength": 5,
+          "minRefreshInterval": 86400,
+          "preloadFileTimeMs": 30000,
+          "localserverBufferSize": 524288,
+          "localserverSendSocketBufferSize": 131072,
+          "ffmpegTcpRecvSocketBufferSize": 131072,
+          "lastFeedInfoCount": 12,
+          "nextFeedInfoCount": 1,
+          "allowToUseNewSpecMaxPercent": -1,
+          "isBackendControlFindPagePreload": false,
+          "isFindPagePreload": false,
+          "findPagePreloadSecond": 5,
+          "wcplayerSchedulerType": 2,
+          "minStartPlayBufferLengthMs": 4000,
+          "findPageEnableCellularPreload": false,
+          "holdoutExptParamSet": {
+            "holdoutItems": [
+              {
+                "key": "holdout_expt_2",
+                "value": "default_test_2",
+                "inPriority": false
+              },
+              {
+                "key": "holdout_expt_1",
+                "value": "default_test",
+                "inPriority": true
+              }
+            ],
+            "hitHoldoutExpt": 0
+          },
+          "flowViewPreload": true,
+          "bufferingHealthLengthL0": 5,
+          "bufferingHealthLengthL1": 10,
+          "bufferingHealthLengthL2": 15,
+          "loadWithPlaying": [],
+          "loadWithPlayWait": [],
+          "findPagePreloadFeedCount": 1
+        },
+        "objectInfo": [
+          {
+            "feedId": 14819096805414996000,
+            "interestFactor": 1,
+            "loadWithPlaying": []
+          }
+        ],
+        "megavideoInfo": []
+      },
+      "traceBuffer": "CLGVjJf5wIDUzQE=",
+      "liveAliasInfo": [],
+      "descCommentInfo": [],
+      "userTags": [],
+      "reportBypass": "{\"client_region\": {\"countryid\": \"xx\", \"ipaddr\": \"203.0.113.10\"}}"
+    },
+    "payload": {
+      "needObject": 1,
+      "lastBuffer": "",
+      "scene": 146,
+      "direction": 2,
+      "identityScene": 2,
+      "pullScene": 6,
+      "objectid": "14819096805414996657",
+      "objectNonceId": "8609277293449234222",
+      "encrypted_objectid": ""
+    }
+  }
+}

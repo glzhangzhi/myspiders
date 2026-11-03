@@ -1,0 +1,54 @@
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "list": [
+      {
+        "id": 44,
+        "root_task_id": 44,
+        "child_count": 0,
+        "name": "example.json",
+        "platform_id": "",
+        "status": 0,
+        "source_url": "",
+        "cover_url": "",
+        "cover_width": "",
+        "cover_height": "",
+        "config_json": "{\"download_dir\":\"/data/downloads\",\"filename\":\"example.json\",\"url\":\"https://example.com/files/example.json\"}",
+        "metadata_json": "",
+        "url": "https://example.invalid/url/f725065c",
+        "size": 0,
+        "downloaded": 0,
+        "speed": 0,
+        "progress": 0,
+        "error": "",
+        "files": [
+          {
+            "id": 160,
+            "download_dir": "/data/downloads",
+            "name": "example.json",
+            "file_path": "/data/downloads/example.json",
+            "kind": "file",
+            "type": "file",
+            "status": "waiting",
+            "size": 0,
+            "downloaded": 0,
+            "speed": 0,
+            "progress": 0,
+            "url": "https://example.invalid/url/f725065c",
+            "error": ""
+          }
+        ],
+        "file_count": 1,
+        "created_at": 1787019341973,
+        "updated_at": 1787019341
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "page_size": 20,
+    "stats": {
+      "0": 1
+    }
+  }
+}
