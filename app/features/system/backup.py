@@ -5,7 +5,7 @@
   - rclone，且已配置名为 "google drive" 的 remote
 备份目标:  google drive:myspiders-backup/{db,files,<模块目录>}/
   - db/     mongo-YYYY-MM-DD.archive.gz   保留 14 份
-  - files/  files-YYYY-MM-DD.tar.gz       保留 5 份(每份约 1GB)（酒馆/梨园/lorebook/dsh/memory/.env）
+  - files/  files-YYYY-MM-DD.tar.gz       保留 5 份(每份约 1GB)（酒馆/梨园/lorebook/dsh/memory/.env/vaultwarden）
   - <name>/                               各模块 `Module.backup_dirs` 声明的目录，sync 镜像
                                           （只增不改的大量小文件，如图片库）
 ⚠️ files 里有 .env 和 bot.session（等同账号密码），Drive 账号本身就是最后一道门。
@@ -139,6 +139,16 @@ FILE_SOURCES: list[tuple[str, str]] = [
     ("basic-memory-state", "/root/.basic-memory"),
     ("myspiders-env", str(REPO_ROOT / ".env")),
     ("myspiders-sessions", str(REPO_ROOT / "bot.session")),
+    # Vaultwarden（2026-11-04 新增）。⚠️ 不能直接打包 data/db.sqlite3：它是 WAL 模式、
+    # 运行中在写，tar 出来可能是坏库。宿主机上的 vaultwarden-snapshot.timer 每小时用
+    # sqlite3 .backup 生成一份一致快照到 backup/，这里打包的是那份快照。
+    # rsa_key.pem 丢了所有客户端都要重新登录；attachments / sends 是库外的文件。
+    ("vaultwarden-db", "/root/vaultwarden/backup"),
+    ("vaultwarden-key", "/root/vaultwarden/data/rsa_key.pem"),
+    ("vaultwarden-attachments", "/root/vaultwarden/data/attachments"),
+    ("vaultwarden-sends", "/root/vaultwarden/data/sends"),
+    ("vaultwarden-compose", "/root/vaultwarden/docker-compose.yml"),
+    ("vaultwarden-env", "/root/vaultwarden/.env"),
 ]
 FILE_EXCLUDES = [
     "node_modules", ".venv", "__pycache__", "*.pyc",
