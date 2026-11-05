@@ -33,6 +33,8 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
           pip install -r requirements.txt
+          # 私有仓库还要跑 tests/private/，它们需要 telethon / websockets；公开仓库没有这个文件
+          if [ -f requirements-private.txt ]; then pip install -r requirements-private.txt; fi
       - name: Privacy scan
         run: python scripts/check_public.py
       - name: Tests
