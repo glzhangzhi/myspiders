@@ -79,7 +79,7 @@ export function ClaudeUsagePage() {
                     <div key={wi} class="row" style={{ gap: '3px', flexWrap: 'nowrap' }}>
                       <span class="small muted" style={{ width: 34 }}>{h.weekdays?.[wi]}</span>
                       {row.map((v, hr) => (
-                        <span key={hr} title={`${h.weekdays?.[wi]} ${String(hr).padStart(2, '0')}:00 · ${v}%`}
+                        <span key={hr} data-tip={`${h.weekdays?.[wi]} ${String(hr).padStart(2, '0')}:00 · ${v}%`}
                           style={{ flex: 1, height: 16, borderRadius: 3, background: 'var(--accent)', opacity: v > 0 ? 0.12 + (v / max) * 0.88 : 0.05 }} />
                       ))}
                     </div>

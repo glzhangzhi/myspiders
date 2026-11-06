@@ -1020,13 +1020,14 @@ function renderStack(months) {
   document.getElementById('chart-stack').innerHTML = byMonth.map((d,i) => {
     const h = d.total / max * H;
     const segs = cats.filter(c => d.parts[c]).map(c =>
-      `<div style="height:${d.parts[c]/max*H}px;background:${catColor(c)}" title="${esc(c)} ${eur(d.parts[c])}"></div>`).join('');
+      `<div style="height:${d.parts[c]/max*H}px;background:${catColor(c)}" data-tip="${esc(`${d.month}　${c}  ${eur(d.parts[c])}\n合计 ${eur(d.total)}`)}"></div>`).join('');
     const my = mav[i] / max * H;
     // 均值线不能放进 .bar-stack：它 overflow:hidden（圆角裁切用），均值 ≥ 当月合计时
     // 线落在柱顶之外被整条裁掉 —— 第一个月恒等于自身、支出回落的月份也都如此；
     // 原来写死的近白色在浅色主题上又看不见，结果是「说有虚线，一条都看不到」。
     // 所以外面包一层不裁切的定位容器，高度取柱高与均值的较大者。
-    return `<div class="bar-wrap" title="${d.month} 合计 ${eur(d.total)}\n近3月均值 ${eur(mav[i])}">
+    // data-tip 走 common.js 的即时提示层（原生 title 有约 1 秒延迟）；悬在色段上时显示色段那条
+    return `<div class="bar-wrap" data-tip="${d.month} 合计 ${eur(d.total)}\n近3月均值 ${eur(mav[i])}">
       <div class="bar-val">${eur0(d.total)}</div>
       <div class="bar-box" style="height:${Math.max(h, my, 2) + 2}px">
         <div class="bar-stack" style="height:${Math.max(h,2)}px">${segs}</div>
@@ -1229,7 +1230,7 @@ function renderHeat(months, exp, ref) {
       monthSum += v;
       const a = v > 0 ? (0.14 + v/max*0.72) : 0;
       cells += `<div class="cell" style="background:rgba(88,166,255,${a});${v>0?'color:var(--text)':''}"
-        title="${key}　${v?eur(v):'无支出'}">${d}</div>`;
+        data-tip="${key}　${v?eur(v):'无支出'}">${d}</div>`;
     }
     return `<div class="heat-month">
       <div class="heat-title">${m.slice(5)}月 <span>${eur0(monthSum)}</span></div>

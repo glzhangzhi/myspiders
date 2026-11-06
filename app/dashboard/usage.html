@@ -268,7 +268,7 @@ function render(s) {
       <td class="num">${pct(b.share_pct)}</td>
       <td class="num">${fmtN(b.requests)}</td>
       <td class="num">${b.hit_rate == null ? '<span class="dim">—</span>' : b.hit_rate.toFixed(1) + '%'}</td>
-      <td><div class="mini" title="命中 ${pct(bc.hit.pct)} / 未命中 ${pct(bc.miss.pct)} / 输出 ${pct(bc.output.pct)}">
+      <td><div class="mini" data-tip="命中 ${pct(bc.hit.pct)} / 未命中 ${pct(bc.miss.pct)} / 输出 ${pct(bc.output.pct)}">
         ${PARTS.map(p => `<div style="background:${p.color};flex-grow:${bc[p.k].pct}"></div>`).join('')}
       </div><div class="dim" style="font-size:11px;margin-top:3px">${PARTS.map(p => pct(bc[p.k].pct)).join(' / ')}</div></td>
       <td class="num ${seen.stale ? 'stale' : 'dim'}">${seen.text}</td>
@@ -331,7 +331,8 @@ function renderDaily(d) {
         const v = x.by_source[k] || 0;
         return v > 0 ? `<div style="background:${SOURCE_COLOR[k] || 'var(--grey)'};height:${v / max * 100}%"></div>` : '';
       }).join('');
-      return `<div class="col ${x.requests ? '' : 'empty'}" title="${esc(lines.join('\n'))}">${segs}</div>`;
+      // data-tip 走 common.js 的即时提示层；原生 title 有约 1 秒延迟，扫柱子时等不及
+      return `<div class="col ${x.requests ? '' : 'empty'}" data-tip="${esc(lines.join('\n'))}">${segs}</div>`;
     }).join('');
   xs.innerHTML = days.map(x => {
     const dow = new Date(x.date + 'T12:00:00Z').getUTCDay();

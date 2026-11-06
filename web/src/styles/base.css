@@ -146,6 +146,14 @@ kbd { font-family: inherit; font-size: 11px; padding: 1px 6px; border: 1px solid
 
 .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 80; }
 .toast { padding: 10px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.3); animation: fade .15s ease; max-width: 360px; }
+/* 即时悬浮提示（lib/tip.ts）；z-index 高于抽屉与 toast */
+.tip {
+  position: fixed; z-index: 100; pointer-events: none; opacity: 0; transition: opacity .09s;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text);
+  padding: 7px 10px; font-size: 12px; line-height: 1.55; white-space: pre; max-width: 300px;
+  font-variant-numeric: tabular-nums; box-shadow: 0 6px 22px rgba(0,0,0,.35);
+}
+.tip.on { opacity: 1; }
 .toast.ok { border-color: var(--green); } .toast.err { border-color: var(--red); }
 
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }

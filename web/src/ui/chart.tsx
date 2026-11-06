@@ -31,14 +31,14 @@ export function LineChart(p: { xs: number[]; series: Series[]; height?: number; 
   return <div ref={el} style={{ width: '100%', minHeight: `${p.height ?? 220}px` }} />;
 }
 
-/** 纯 CSS 柱状图（几十根以内足够，不必加载图表库）。 */
+/** 纯 CSS 柱状图（几十根以内足够，不必加载图表库）。悬浮提示用 data-tip（即时），不用 title（约 1 秒延迟）。 */
 export function Bars(p: { data: { label: string; value: number }[]; height?: number; color?: string; fmt?: (v: number) => string }) {
   const max = Math.max(1, ...p.data.map((d) => d.value));
   const h = p.height ?? 140;
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: `${h}px` }}>
       {p.data.map((d) => (
-        <div key={d.label} title={`${d.label}：${p.fmt ? p.fmt(d.value) : d.value}`}
+        <div key={d.label} data-tip={`${d.label}：${p.fmt ? p.fmt(d.value) : d.value}`}
           style={{ flex: 1, minWidth: '3px', height: `${(d.value / max) * 100}%`, background: `var(--${p.color ?? 'accent'})`, borderRadius: '3px 3px 0 0', opacity: d.value ? 1 : 0.25 }} />
       ))}
     </div>
