@@ -5,7 +5,7 @@
   - rclone，且已配置名为 "google drive" 的 remote
 备份目标:  google drive:myspiders-backup/{db,files,<模块目录>}/
   - db/     mongo-YYYY-MM-DD.archive.gz   保留 14 份
-  - files/  files-YYYY-MM-DD.tar.gz       保留 5 份(每份约 1GB)（酒馆/梨园/lorebook/dsh/memory/.env/vaultwarden）
+  - files/  files-YYYY-MM-DD.tar.gz       保留 5 份(每份约 1GB)（酒馆/梨园/lorebook/dsh/memory/.env/vaultwarden/ntfy）
   - <name>/                               各模块 `Module.backup_dirs` 声明的目录，sync 镜像
                                           （只增不改的大量小文件，如图片库）
 ⚠️ files 里有 .env 和 bot.session（等同账号密码），Drive 账号本身就是最后一道门。
@@ -149,6 +149,11 @@ FILE_SOURCES: list[tuple[str, str]] = [
     ("vaultwarden-sends", "/root/vaultwarden/data/sends"),
     ("vaultwarden-compose", "/root/vaultwarden/docker-compose.yml"),
     ("vaultwarden-env", "/root/vaultwarden/.env"),
+    # 自建 ntfy（2026-11-07 新增）。只备 auth.db（账号、ACL、令牌）的一致快照和 compose：
+    # 原库是 SQLite WAL，直接 tar 可能是坏库，宿主机的 ntfy-snapshot.timer 每小时用
+    # sqlite3 .backup 写到 backup/。cache.db 不备 —— 消息只留 72 小时，丢了只是少几条旧通知。
+    ("ntfy-auth", "/root/ntfy/backup"),
+    ("ntfy-compose", "/root/ntfy/docker-compose.yml"),
 ]
 FILE_EXCLUDES = [
     "node_modules", ".venv", "__pycache__", "*.pyc",

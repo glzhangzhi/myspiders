@@ -1,7 +1,10 @@
 """ntfy 推送客户端。
 
-通过 ntfy (https://ntfy.sh) 发送通知到手机/桌面。
+通过 ntfy (https://ntfy.sh 或自建实例) 发送通知到手机/桌面。
 不同类型的通知使用不同的 topic，以 topic_prefix 为前缀。
+
+自建实例开了访问控制时，配 `ntfy_token`（发布权限的令牌）：公共 ntfy.sh 上
+topic 名就是唯一的门，知道名字的人能读能发；自建 + deny-all + 令牌才是真的门。
 """
 
 from __future__ import annotations
@@ -20,11 +23,12 @@ class NtfyError(Exception):
 class NtfyClient:
     """对 ntfy HTTP API 的轻量封装。"""
 
-    def __init__(self, base_url: str, topic_prefix: str):
+    def __init__(self, base_url: str, topic_prefix: str, token: str = ""):
         if not base_url:
             raise NtfyError("未配置 ntfy 服务地址 (ntfy_base_url)")
         self.base_url = base_url.rstrip("/")
         self.topic_prefix = topic_prefix
+        self.token = token
 
     def _full_topic(self, topic: str) -> str:
         """拼接完整 topic 名称。"""
@@ -78,9 +82,11 @@ class NtfyClient:
         if actions:
             payload["actions"] = actions
 
+        headers = {"Authorization": f"Bearer {self.token}"} if self.token else None
         response = requests.post(
             url,
             json=payload,
+            headers=headers,
             timeout=15,
         )
         if response.status_code >= 400:
@@ -98,5 +104,6 @@ def get_ntfy_client() -> NtfyClient:
 
     global _ntfy_client
     if _ntfy_client is None:
-        _ntfy_client = NtfyClient(settings.ntfy_base_url, settings.ntfy_topic_prefix)
+        _ntfy_client = NtfyClient(settings.ntfy_base_url, settings.ntfy_topic_prefix,
+                                  settings.ntfy_token)
     return _ntfy_client

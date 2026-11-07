@@ -30,6 +30,9 @@ class CoreSettings(BaseSettings):
     ntfy_base_url: str = "https://ntfy.sh"
     # 完整 topic = 前缀 + 功能名。用公共 ntfy.sh 时 topic 名就是唯一的访问控制，前缀要够随机。
     ntfy_topic_prefix: str = "myspiders_"
+    # 自建 ntfy 开了 auth（auth-default-access: deny-all）时填发布令牌（tk_...），
+    # 以 `Authorization: Bearer` 发送。公共 ntfy.sh 留空。
+    ntfy_token: str = ""
     admin_token: str = ""
     # false = 开发实例：不启动调度器、Discord 长连接与启动钩子（只提供 API 与页面），
     # 避免和生产抢 Telegram 会话、重复推 ntfy、重复写外部世界。
