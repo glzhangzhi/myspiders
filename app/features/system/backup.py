@@ -4,8 +4,8 @@
   - mongodump（mongodb-database-tools）、tar
   - rclone，且已配置名为 "google drive" 的 remote
 备份目标:  google drive:myspiders-backup/{db,files,<模块目录>}/
-  - db/     mongo-YYYY-MM-DD.archive.gz   保留 14 份
-  - files/  files-YYYY-MM-DD.tar.gz       保留 5 份(每份约 1GB)（酒馆/梨园/lorebook/dsh/memory/.env/vaultwarden/ntfy）
+  - db/     mongo-YYYY-MM-DD.archive.gz   保留 3 份
+  - files/  files-YYYY-MM-DD.tar.gz       保留 2 份(每份约 1GB)（酒馆/梨园/lorebook/dsh/memory/.env/vaultwarden/ntfy）
   - <name>/                               各模块 `Module.backup_dirs` 声明的目录，sync 镜像
                                           （只增不改的大量小文件，如图片库）
 ⚠️ files 里有 .env 和 bot.session（等同账号密码），Drive 账号本身就是最后一道门。
@@ -32,7 +32,12 @@ BACKUP_NTFY_TOPIC = "spider"
 RCLONE_REMOTE = "google drive:myspiders-backup"
 from app.core.paths import DATA_DIR, REPO_ROOT  # noqa: E402
 STATUS_FILE = DATA_DIR / "backup_status.json"
-DB_KEEP = 14  # 保留最近 N 份数据库快照
+DB_KEEP = 3  # 保留最近 N 份数据库快照（Drive 只有 15G，见 FILES_KEEP 处的说明）
+
+# 轮转删旧快照时绕过回收站。Drive 默认把删除的文件放进回收站 30 天、照样占配额：
+# 每天删一份 ~1.2G 的工作区包 = 每天往回收站塞 1.2G。2026-11 回收站涨到 1G+、
+# Drive 只剩 1.2G，下一次备份就会撑爆（撑爆后 DB 快照也写不进去）。
+_DELETE_FLAGS = ["--drive-use-trash=false"]
 
 # rclone 并发。
 # 历史:rclone.conf 曾未配 client_id → 走 rclone 内置公共 Google 项目,配额全球共享,
@@ -75,7 +80,7 @@ def _backup_db() -> dict:
         ls = _run(["rclone", "lsf", f"{RCLONE_REMOTE}/db/"], 120)
         snaps = sorted(f for f in ls.stdout.splitlines() if f.startswith("mongo-"))
         for old in snaps[:-DB_KEEP]:
-            _run(["rclone", "deletefile", f"{RCLONE_REMOTE}/db/{old}"], 120)
+            _run(["rclone", "deletefile", f"{RCLONE_REMOTE}/db/{old}", *_DELETE_FLAGS], 120)
         return {"ok": True, "file": name, "size": size}
     finally:
         Path(archive).unlink(missing_ok=True)
@@ -123,8 +128,9 @@ def _backup_mirror(name: str, local: Path) -> dict:
 # 两边的目录不一定一模一样。
 
 # 一份约 1.07GB（2026-10-31 实测），Drive 15G 里只剩 8.5G。14 份会撑爆 Drive，
-# 而且撑爆后连 DB 快照也写不进去。5 份 ≈ 5.4G，能回到 5 天前。
-FILES_KEEP = 5
+# 而且撑爆后连 DB 快照也写不进去。2026-11-07 每份涨到 ~1.2G、Drive 余量见底，
+# 机主拍板降到 2 份（今天 + 昨天），DB 同时降到 3 份。
+FILES_KEEP = 2
 FILE_SOURCES: list[tuple[str, str]] = [
     # (标签, 路径)。标签就是打包后的顶层目录名，恢复时一看就知道是什么
     ("sillytavern-data", "/root/sillytavern/data"),
@@ -160,6 +166,9 @@ FILE_EXCLUDES = [
     "_cache", "_webpack",                     # 酒馆前端构建缓存，启动时重建
     "fastembed_cache",                         # basic-memory 的嵌入模型，会重新下载
     "speech-to-text",                          # dsh 的语音模型
+    # 酒馆按聊天自动生成的备份（~185MB，内容与 chats/ 重复）。写带标签的全路径：
+    # 单写 "backups" 会连带排除 .dsh/workspace-mover/backups。
+    "sillytavern-data/default-user/backups",
     # ⚠️ 不能排除整个 .dsh/mcp-servers：里面的 run.sh、token、taiga.sh 没法重建
     # （2026-10-31 恢复到 free-arm 时才发现它们一起被排除了）。真正可重建的
     # 只有它的 node_modules，上面那条规则已经覆盖。
@@ -200,7 +209,7 @@ def _backup_files() -> dict:
         ls = _run(["rclone", "lsf", f"{RCLONE_REMOTE}/files/"], 120)
         snaps = sorted(f for f in ls.stdout.splitlines() if f.startswith("files-"))
         for old in snaps[:-FILES_KEEP]:
-            _run(["rclone", "deletefile", f"{RCLONE_REMOTE}/files/{old}"], 120)
+            _run(["rclone", "deletefile", f"{RCLONE_REMOTE}/files/{old}", *_DELETE_FLAGS], 120)
         return {"ok": True, "file": name, "size": size,
                 "sources": [label for label, _ in present]}
     finally:
