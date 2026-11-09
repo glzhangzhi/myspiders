@@ -40,7 +40,7 @@ ffmpeg，最高只能拿到 ~720p 的合流格式。WSL 里 apt 装 ffmpeg 一�
    `ssh wsl-3060ti 'bash -s' < deploy/win-media/setup_media_agent.sh`
 2. **机主手动**：在 3060ti 上双击
    `%LOCALAPPDATA%\wx_video_download\wx_video_download.exe`
-   （脚本已校验 sha256 后放好 v260907 safe 版）。首次会装根证书、设系统代理（弹 UAC）。
+   （脚本已校验 sha256 后放好 safe 版，版本见脚本里的 `VER`）。首次会装根证书、设系统代理（弹 UAC）。
    建议把它的快捷方式放进 `shell:startup` 开机自启。
 3. **机主手动**：YouTube 私人列表要 cookies。当前的
    `C:\Users\Administrator\Downloads\cookies.txt` **没有登录 cookie**（缺 `SID`/`LOGIN_INFO`，
@@ -101,11 +101,13 @@ Firefox 的库不加密，WSL 里能直接读（Chrome 是 App-Bound 加密，�
 | 「视频号页面未连接」 | 电脑微信里打开视频号；还不行就重启 wx_video_download 并确认系统代理是它的 2023 端口 |
 | YouTube「The playlist does not exist」 | 私人列表 + cookies 无效（见准备第 3 步），或 list id 抄错 |
 | YouTube「Sign in to confirm you're not a bot」 | 同上，换新 cookies；或点「更新 yt-dlp」 |
+| 视频号窗口一直载入不出来 / 拉关注报 `WXU.API4.finderGetFollowList is not a function` | 微信更新后 ltaoo 注入脚本失配（2026-11-06 那次由 v261106 修复）。去 [ltaoo releases](https://github.com/ltaoo/wx_channels_download/releases) 换新 exe：把正在跑的 exe 改名备份、放新的、重启它并重开视频号窗口；同步改 `setup_media_agent.sh` 的 `VER` |
+| 启动报 `bind: An attempt was made to access a socket in a way forbidden` | 2022/2023 落进 winnat 的保留段（`netsh int ipv4 show excludedportrange protocol=tcp`）。根因是 TCP 动态端口范围被改到 1024 起，管理员下改回 `start=49152 num=16384` 并重启 winnat |
 | 视频号任务长时间没进展 | ltaoo 任务 30 分钟无进展会被判失败，面板「全部重试」即可 |
 
 ## 真机校准（2026-11-01 已做）
 
-用 ltaoo v260907 + 机主的微信实测，样本存为 `tests/fixtures/media/real_*.json`：
+用 ltaoo v260907 + 机主的微信实测（2026-11-09 已升到 v261106，API 无破坏性变化），样本存为 `tests/fixtures/media/real_*.json`：
 
 - **微信搜索（`contact/search`）不可用**：一直回 `-70003 JSAPI_JSONPARSE_FAILED`
   （`H5ExtTransfer:fail` / `resp mmpkg invalid`），是微信那边的问题、换关键词也一样。

@@ -23,7 +23,7 @@ fi
 # ltaoo/wx_channels_download（视频号）：只放文件，**首次运行必须机主在 Windows 上手动双击**
 # （它要装根证书、设系统代理，会弹 UAC）。校验和对不上就不放。
 WX_DIR=/mnt/c/Users/Administrator/AppData/Local/wx_video_download
-VER=v260907
+VER=v261106
 if [ ! -f "$WX_DIR/wx_video_download.exe" ]; then
   mkdir -p "$WX_DIR"
   cd "$HOME_DIR/tmp"
