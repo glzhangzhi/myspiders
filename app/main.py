@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware import gzip as _gzip_mod
 from starlette.responses import RedirectResponse
 
 from app.core.logging import get_logger
@@ -78,6 +79,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="MySpiders", lifespan=lifespan)
 
 # HTML / JSON 一律 gzip。SSE 不受影响：starlette 的 GZipMiddleware 默认排除 text/event-stream。
+# 音视频/图片绝不能压：`Range: bytes=0-` 的 206 被压缩后 Content-Range 还是原始偏移、正文却是
+# gzip 流，浏览器拖进度条就乱了（starlette 0.46 实测会压），几百 MB 的文件还白烧 CPU。
+# GZipResponder 在运行时读这个模块全局量，扩充它即可（tests/test_registry.py 端到端守着）。
+_gzip_mod.DEFAULT_EXCLUDED_CONTENT_TYPES = tuple(dict.fromkeys(
+    (*_gzip_mod.DEFAULT_EXCLUDED_CONTENT_TYPES, "audio/", "video/", "image/")))
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 

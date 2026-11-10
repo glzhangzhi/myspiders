@@ -58,3 +58,26 @@ def test_missing_feature_module_is_reported_not_fatal(tmp_path, monkeypatch):
     broken = [x for x in found if x.id == "zz_broken"]
     assert broken and broken[0].module is None and "boom" in broken[0].error
     assert any(x.id == "system" and x.module for x in found)
+
+
+def test_media_ranges_are_never_gzipped(tmp_path):
+    """`Range: bytes=0-` 的 206 被 gzip 后 Content-Range 与正文对不上，手机上拖不动进度条。"""
+    from fastapi import FastAPI
+    from fastapi.middleware.gzip import GZipMiddleware
+    from fastapi.responses import FileResponse
+
+    from app.main import app as _  # 导入即扩充排除清单
+
+    assert _ is not None
+
+    f = tmp_path / "a.mp3"
+    f.write_bytes(b"\0" * 50_000)
+    mini = FastAPI()
+    mini.add_middleware(GZipMiddleware, minimum_size=1024)
+    mini.get("/a")(lambda: FileResponse(f, media_type="audio/mpeg"))
+    c = TestClient(mini)
+    r = c.get("/a", headers={"Range": "bytes=0-", "Accept-Encoding": "gzip"})
+    assert r.status_code == 206 and "content-encoding" not in r.headers
+    assert r.headers["content-range"] == "bytes 0-49999/50000"
+    r = c.get("/a", headers={"Range": "bytes=100-199", "Accept-Encoding": "gzip"})
+    assert r.status_code == 206 and len(r.content) == 100

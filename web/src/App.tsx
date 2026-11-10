@@ -11,14 +11,23 @@ import { mobileOpen, Sidebar } from './shell/Sidebar';
 import { loadSpiders, SpidersDrawer, useSpiderStream } from './shell/spiders';
 import { TokenDialog } from './shell/TokenDialog';
 import { Toolbox } from './shell/Toolbox';
+import { PlayerBar } from './player/PlayerBar';
 import { toastError, toasts } from './lib/toast';
 import { Empty, Skeleton } from './ui';
 
 // 入籍考试页体积较大、只在手机刷题时打开：按需加载，不进首屏包
 const LidPage = lazy(() => import('./pages/Lid').then((m) => m.LidPage));
 
+// 私有原生页面（web/src/private/<id>/index.tsx，导出 `Page`）：公开仓库没有这个目录，
+// glob 结果为空也照常构建 —— 所以这里不许静态 import 私有路径。按需加载，不进首屏包。
+const PRIVATE_PAGES = Object.fromEntries(
+  Object.entries(import.meta.glob<{ Page: () => preact.JSX.Element }>('./private/*/index.tsx'))
+    .map(([path, load]) => [path.split('/')[2], lazy(() => load().then((m) => m.Page))]),
+);
+
 const NATIVE_PAGES: Record<string, () => preact.JSX.Element> = {
   health: SystemPage, nintendo: NintendoPage, qimen: QimenPage, claude_usage: ClaudeUsagePage, lid: LidPage,
+  ...PRIVATE_PAGES,
 };
 const DEFAULT = 'health';
 
@@ -78,6 +87,7 @@ function Shell() {
             <Route default component={Page} />
           </Router>
         </main>
+        <PlayerBar />
       </div>
       {overlay === 'spiders' && <SpidersDrawer onClose={close} conn={conn} />}
       {overlay === 'tools' && <Toolbox onClose={close} />}

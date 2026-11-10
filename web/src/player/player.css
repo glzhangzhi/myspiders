@@ -1,0 +1,31 @@
+/* 全局播放条：贴在主区底部，手机上拇指够得着。色值只用 theme.css 变量。 */
+.player {
+  flex: none; border-top: 1px solid var(--border); background: var(--surface);
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px;
+}
+.player-row { display: flex; align-items: center; gap: 4px; }
+.player-meta { flex: 1; min-width: 0; }
+.player-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.player-artist { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-err { color: var(--red); }
+.player-btn {
+  min-width: 44px; min-height: 44px; border: 0; background: none; color: var(--text); cursor: pointer; border-radius: 10px;
+  font-size: 18px; display: inline-flex; align-items: center; justify-content: center; gap: 1px; flex: none;
+}
+.player-btn small { font-size: 10px; color: var(--text-dim); }
+.player-btn:active { background: var(--surface2); }
+.player-btn.main { background: var(--accent); color: var(--bg); width: 44px; border-radius: 50%; font-size: 16px; }
+.player-btn.close { color: var(--text-dim); font-size: 15px; min-width: 36px; }
+.player-seek { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.player-seek input[type=range] {
+  flex: 1; appearance: none; -webkit-appearance: none; height: 28px; background: none; margin: 0; cursor: pointer;
+}
+.player-seek input[type=range]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--p), var(--surface2) var(--p));
+}
+.player-seek input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--surface2); }
+.player-seek input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+.player-seek input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); margin-top: -6px; border: 0;
+}
+.player-seek input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 0; }
