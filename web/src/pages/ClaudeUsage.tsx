@@ -131,7 +131,7 @@ function ForecastLine({ f }: { f: Forecast }) {
     `周几画像（近 30 天）≈ ${r0(sig?.profile)}%`,
     `上周同一时刻之后的用量 ≈ ${r0(sig?.last_week)}%`,
     `滚动 7 天用量水平 ≈ ${r0(sig?.rolling)}%`,
-    f.low != null ? `区间：本方法过去 ${f.weeks} 周、相近剩余天数时的误差 5–95% 分位` : '历史周数不足，暂无区间',
+    f.low != null ? `区间：过去 ${f.weeks} 周同类时点的误差（5–95%）` : '历史周数不足，暂无区间',
   ].join('\n');
   return (
     <div class="small" style={{ marginTop: 3 }} data-tip={tip}>
