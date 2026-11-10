@@ -77,7 +77,7 @@ export function ClaudeUsagePage() {
 
       <Card title="📈 消耗分布" sub={
         <select class="input" value={win} onChange={(e) => setWin((e.target as HTMLSelectElement).value)}>
-          <option value="5h">5 小时窗口</option><option value="7d">7 天窗口</option><option value="7d_sonnet">7 天 Sonnet</option>
+          <option value="5h">5 小时窗口</option><option value="7d">7 天窗口</option>
         </select>}>
         <Tabs value={view} onChange={setView} options={[
           { value: 'hour', label: '24 小时' }, { value: 'weekday', label: '周几' }, { value: 'date', label: '30 天' }, { value: 'heatmap', label: '热力图' },

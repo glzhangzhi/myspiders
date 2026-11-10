@@ -8,7 +8,7 @@
         取第一个"存在且未过期"的源；都不可用则沿用上次快照并标记 stale。
 
 核心机制：
-  - 自适应轮询：按三个窗口的最大利用率决定下次间隔——闲时 30min，逼近上限时 5min，
+  - 自适应轮询：按各窗口的最大利用率决定下次间隔——闲时 30min，逼近上限时 5min，
     既把请求数压到最低，又能及时抓到 50% / 90% 阈值。调度器每 5min 调一次 tick()，
     由本服务决定本次是否真正请求。
   - 历史记录：每次成功拉取追加一条快照到 Mongo（claude_usage_history）。
@@ -58,18 +58,17 @@ NTFY_TOPIC = "claude"
 # 上一周期峰值低于此值则不推重置小结（避免空闲 5h 窗口反复刷屏）
 RESET_SUMMARY_MIN_PEAK = 5.0
 
-# 被监控的三个窗口：(payload 字段, 显示名)
+# 被监控的窗口：(payload 字段, 显示名)。
+# seven_day_sonnet 自 2026-07 起 API 一直返回 null，已移除（旧历史文档里还留着这个字段，无害）。
 WINDOWS = [
     ("five_hour", "5 小时窗口"),
     ("seven_day", "7 天窗口"),
-    ("seven_day_sonnet", "7 天 Sonnet"),
 ]
 
 # 前端 window 参数 → payload 字段
 WINDOW_KEYS = {
     "5h": "five_hour",
     "7d": "seven_day",
-    "7d_sonnet": "seven_day_sonnet",
 }
 
 WEEKDAY_NAMES = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
