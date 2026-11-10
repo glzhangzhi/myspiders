@@ -139,7 +139,7 @@ function ExamReview(p: { r: ExamResult; onExit: () => void }) {
       <section class="card lid-result">
         <div class={`lid-score ${p.r.passed ? 'pass' : 'fail'}`}>{p.r.score}<span>/{p.r.total}</span></div>
         <div class={p.r.passed ? 'lid-good' : 'lid-bad'} style={{ fontSize: 18, fontWeight: 650 }}>{p.r.passed ? '及格 ✓' : '不及格'}</div>
-        <div class="muted small">及格线 17 题 · 错 {wrong.length} 题（已进错题本，等级退回 1）</div>
+        <div class="muted small">及格线 17 题 · 答错 {wrong.filter((w) => w.chosen !== null).length} 题（已进错题本，等级退回 1）{wrong.some((w) => w.chosen === null) ? ` · 未作答 ${wrong.filter((w) => w.chosen === null).length} 题（算错，不进错题本）` : ''}</div>
       </section>
       {wrong.map((it) => {
         const q = byId.value.get(it.qid);
