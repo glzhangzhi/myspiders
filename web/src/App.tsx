@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
+import { lazy, LocationProvider, Route, Router, useLocation } from 'preact-iso';
 import { ClaudeUsagePage } from './pages/ClaudeUsage';
 import { Embedded } from './pages/Embedded';
 import { NintendoPage } from './pages/Nintendo';
@@ -14,8 +14,11 @@ import { Toolbox } from './shell/Toolbox';
 import { toastError, toasts } from './lib/toast';
 import { Empty, Skeleton } from './ui';
 
+// 入籍考试页体积较大、只在手机刷题时打开：按需加载，不进首屏包
+const LidPage = lazy(() => import('./pages/Lid').then((m) => m.LidPage));
+
 const NATIVE_PAGES: Record<string, () => preact.JSX.Element> = {
-  health: SystemPage, nintendo: NintendoPage, qimen: QimenPage, claude_usage: ClaudeUsagePage,
+  health: SystemPage, nintendo: NintendoPage, qimen: QimenPage, claude_usage: ClaudeUsagePage, lid: LidPage,
 };
 const DEFAULT = 'health';
 

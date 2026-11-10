@@ -1,0 +1,121 @@
+/* 入籍考试刷题（手机优先）。色值只用 theme.css 变量；对 = --green，错 = --red。 */
+.lid-page { max-width: 720px; padding-bottom: 96px; }
+.lid-session { display: flex; flex-direction: column; gap: 12px; }
+.lid-tap { min-height: 44px; min-width: 44px; }
+.spacer { flex: 1; }
+
+/* 首页 */
+.lid-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lid-days { font-size: 32px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.lid-ring {
+  --p: 0; width: 84px; height: 84px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: conic-gradient(var(--green) calc(var(--p) * 1%), var(--surface2) 0);
+}
+.lid-ring span { width: 66px; height: 66px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+.lid-ring small { font-size: 11px; color: var(--text-dim); font-weight: 400; }
+.lid-stats { margin-top: 14px; grid-template-columns: repeat(3, 1fr); }
+.lid-pred { margin-top: 12px; padding: 8px 10px; border-radius: 8px; background: var(--surface2); font-size: 13px; }
+.lid-pred.ok { background: var(--green-bg); }
+.lid-pred.late { background: var(--yellow-bg); color: var(--yellow); }
+.lid-start { width: 100%; justify-content: center; display: flex; align-items: center; gap: 6px; min-height: 56px; font-size: 17px; border-radius: 12px; }
+.lid-start small { font-weight: 400; opacity: .85; }
+.lid-menu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.lid-menu-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 76px; padding: 10px 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; cursor: pointer;
+}
+.lid-menu-btn:active { background: var(--surface2); }
+.lid-menu-icon { font-size: 20px; line-height: 1; }
+.lid-free { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.lid-seg { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.lid-seg button { flex: 1; min-height: 44px; border: 0; background: none; cursor: pointer; color: var(--text-dim); }
+.lid-seg button + button { border-left: 1px solid var(--border); }
+.lid-seg button.on { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+
+/* 答题 */
+.lid-bar { display: flex; align-items: center; gap: 8px; }
+.lid-bar-title { font-weight: 600; flex: 1; }
+.lid-card { display: flex; flex-direction: column; gap: 10px; }
+.lid-card-top { display: flex; align-items: center; gap: 6px; }
+.lid-icon {
+  min-width: 44px; min-height: 44px; margin: -8px -4px -8px 0; border: 0; background: none; cursor: pointer;
+  border-radius: 10px; color: var(--text-dim); font-size: 16px;
+}
+.lid-icon.on { color: var(--accent); background: var(--accent-bg); }
+.lid-icon.star.on { color: var(--yellow); background: var(--yellow-bg); }
+.lid-q { font-size: 17px; font-weight: 600; line-height: 1.45; }
+.lid-zh { display: block; font-size: 13px; color: var(--text-dim); margin-top: 2px; line-height: 1.5; }
+.lid-fig { margin: 0; }
+.lid-fig img { display: block; max-width: 100%; max-height: 55vh; margin: 0 auto; border-radius: 8px; }
+.lid-fig figcaption { font-size: 11px; color: var(--text-dim); text-align: right; margin-top: 2px; }
+.lid-opts { display: flex; flex-direction: column; gap: 8px; }
+.lid-opt {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; min-height: 52px; padding: 10px 12px; text-align: left;
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 15px; line-height: 1.4;
+}
+.lid-opt:not(:disabled):active { background: var(--surface2); }
+.lid-opt:disabled { cursor: default; }
+.lid-opt.sel { border-color: var(--accent); background: var(--accent-bg); }
+.lid-opt.ok { border-color: var(--green); background: var(--green-bg); }
+.lid-opt.bad { border-color: var(--red); background: var(--red-bg); }
+.lid-opt.dim { opacity: .55; }
+.lid-key {
+  flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600;
+  background: var(--surface2); color: var(--text-dim);
+}
+.lid-opt.ok .lid-key { background: var(--green); color: var(--bg); }
+.lid-opt.bad .lid-key { background: var(--red); color: var(--bg); }
+.lid-opt.sel .lid-key { background: var(--accent); color: var(--bg); }
+.lid-opt-text { flex: 1; min-width: 0; padding-top: 2px; }
+.lid-exp { border-top: 1px solid var(--border); padding-top: 4px; }
+.lid-exp-head { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; border: 0; background: none; cursor: pointer; padding: 0; }
+.lid-exp-body { display: flex; flex-direction: column; gap: 4px; font-size: 14px; line-height: 1.55; }
+.lid-good { color: var(--green); font-weight: 600; }
+.lid-bad { color: var(--red); font-weight: 600; }
+.lid-line { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--surface2); font-size: 13px; }
+.lid-line:last-child { border-bottom: 0; }
+
+/* 底部操作条：固定在拇指够得着的位置 */
+.lid-actions {
+  position: sticky; bottom: 0; z-index: 5; display: flex; gap: 8px; align-items: center; justify-content: flex-end;
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--border);
+}
+.lid-big { justify-content: center; text-align: center; min-height: 48px; padding: 0 22px; font-size: 16px; flex: 1; max-width: 360px; }
+.lid-hint { flex: 1; text-align: center; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+.lid-flag-on { border-color: var(--yellow); color: var(--yellow); }
+
+/* 模拟考 */
+.lid-timer { font-variant-numeric: tabular-nums; font-weight: 600; }
+.lid-timer.warn { color: var(--red); }
+.lid-grid { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; }
+.lid-grid-toggle { width: 100%; min-height: 44px; justify-content: space-between; display: flex; align-items: center; }
+.lid-cell {
+  min-height: 44px; border: 1px solid var(--border); background: var(--bg); border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-variant-numeric: tabular-nums; padding: 0; position: relative;
+}
+.lid-cell.done { background: var(--accent-bg); color: var(--accent); }
+.lid-cell.cur { border-color: var(--accent); border-width: 2px; font-weight: 700; }
+.lid-cell.flag::after { content: ""; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+.lid-result { text-align: center; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.lid-score { font-size: 48px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.lid-score span { font-size: 22px; color: var(--text-dim); font-weight: 500; }
+.lid-score.pass { color: var(--green); }
+.lid-score.fail { color: var(--red); }
+.lid-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* 统计 */
+.lid-stack { display: flex; height: 18px; border-radius: 999px; overflow: hidden; background: var(--surface2); }
+.lid-stack span { display: block; height: 100%; }
+.lid-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+.lid-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; }
+
+@media (max-width: 760px) {
+  .lid-page { padding-left: 10px; padding-right: 10px; }
+  .lid-days { font-size: 28px; }
+  .lid-menu { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .lid-menu-btn { font-size: 12.5px; min-height: 68px; }
+  .lid-grid { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .lid-opt { font-size: 15.5px; }
+  .lid-actions { margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
+  .lid-big { max-width: none; }
+}

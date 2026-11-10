@@ -18,7 +18,7 @@ export const navLoaded = signal(false);
 export const navById = computed(() => new Map(navItems.value.map((n) => [n.id, n])));
 
 /** 原生页面（不走 iframe）的 id 集合；导航里的同名条目会渲染成新页面。 */
-export const NATIVE = new Set(['health', 'nintendo', 'qimen', 'claude_usage']);
+export const NATIVE = new Set(['health', 'nintendo', 'qimen', 'claude_usage', 'lid']);
 
 export async function loadNav() {
   const r = await api<ModulesResp>('/api/modules');

@@ -30,6 +30,7 @@
 | **酒馆资料** | 只读浏览 SillyTavern 的角色卡 / 世界书 / 预设与聊天导出；写操作一律走 `tavern_sync` |
 | **下载** | 在另一台 Windows 机器上检测关注的视频号作者 / YouTube 列表的新内容，按需下载 |
 | **奇门遁甲** | 时家奇门排盘 |
+| **入籍考试** | 「Leben in Deutschland」黑森州 310 题刷题：压缩版 Leitner 复习、中文辅助按题淡出、30+3 题模拟考（[说明](docs/lid.md)） |
 
 ## 技术栈
 
@@ -159,4 +160,4 @@ python scripts/e2e_smoke.py # 无头浏览器打开每个页面，有控制台�
 
 ## 许可证
 
-[MIT](LICENSE)
+[MIT](LICENSE)。入籍考试题库（`app/features/lid/data/`）的来源与出处见 [docs/lid.md](docs/lid.md)。

@@ -30,6 +30,7 @@ It is built around a **module registry**: every feature is a self-contained pack
 | **Tavern** | Read-only browser for SillyTavern character cards / lorebooks / presets and chat export; writes go through `tavern_sync` |
 | **Media** | Detects new videos from followed channels / playlists on a remote Windows machine and downloads them on demand |
 | **Qimen** | Qimen Dunjia (奇门遁甲) chart calculation |
+| **Citizenship test** | Drill the 310 questions of the „Leben in Deutschland“ test (Hessen): compressed Leitner review, per-question fading Chinese hints, 30+3 mock exams ([notes](docs/lid.md)) |
 
 ## Tech stack
 
@@ -159,4 +160,4 @@ python scripts/e2e_smoke.py # headless browser opens every page, fails on consol
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Sources and attribution of the citizenship-test question bank (`app/features/lid/data/`) are listed in [docs/lid.md](docs/lid.md).
