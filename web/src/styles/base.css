@@ -150,7 +150,8 @@ kbd { font-family: inherit; font-size: 11px; padding: 1px 6px; border: 1px solid
 .tip {
   position: fixed; z-index: 100; pointer-events: none; opacity: 0; transition: opacity .09s;
   background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text);
-  padding: 7px 10px; font-size: 12px; line-height: 1.55; white-space: pre; max-width: 300px;
+  /* pre-wrap 而不是 pre：pre 不折行，长行会冲出 max-width 的框 */
+  padding: 7px 10px; font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 320px;
   font-variant-numeric: tabular-nums; box-shadow: 0 6px 22px rgba(0,0,0,.35);
 }
 .tip.on { opacity: 1; }

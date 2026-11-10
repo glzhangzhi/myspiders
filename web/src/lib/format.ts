@@ -23,6 +23,18 @@ export function fmtRel(iso?: string | number | null, now = Date.now()): string {
   return s < 0 ? `${unit[0]} ${unit[1]}前` : `${unit[0]} ${unit[1]}后`;
 }
 
+/** 倒计时（向下取整，不四舍五入成「7 天后」）：45 分钟后 / 2 小时 15 分后 / 6 天 19 小时后。 */
+export function fmtLeft(iso?: string | number | null, now = Date.now()): string {
+  if (iso === null || iso === undefined || iso === '') return '—';
+  const t = typeof iso === 'number' ? (iso < 1e12 ? iso * 1000 : iso) : new Date(iso).getTime();
+  if (Number.isNaN(t)) return '—';
+  const m = Math.floor((t - now) / 60000);
+  if (m < 1) return '即将';
+  if (m < 60) return `${m} 分钟后`;
+  if (m < 1440) return `${Math.floor(m / 60)} 小时 ${m % 60} 分后`;
+  return `${Math.floor(m / 1440)} 天 ${Math.floor((m % 1440) / 60)} 小时后`;
+}
+
 export function fmtBytes(n?: number | null): string {
   if (n === null || n === undefined || Number.isNaN(n)) return '—';
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];

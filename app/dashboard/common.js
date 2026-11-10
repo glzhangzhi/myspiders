@@ -88,9 +88,10 @@ function escAttr(s) {
       'position:fixed', 'z-index:100001', 'pointer-events:none',
       'background:var(--surface2,#322e2b)', 'border:1px solid var(--border,#403a36)', 'border-radius:7px',
       'padding:7px 10px', 'font-size:12px', 'line-height:1.55', 'color:var(--text,#e8e2d9)',
-      'box-shadow:0 6px 22px rgba(0,0,0,.5)', 'white-space:pre',
+      // pre-wrap 而不是 pre：pre 不折行，长行会冲出 max-width 的框
+      'box-shadow:0 6px 22px rgba(0,0,0,.5)', 'white-space:pre-wrap', 'overflow-wrap:anywhere',
       'font-variant-numeric:tabular-nums', 'opacity:0',
-      'transition:opacity .09s', 'max-width:300px',
+      'transition:opacity .09s', 'max-width:320px',
       'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif',
     ].join(';');
     document.body.appendChild(el);

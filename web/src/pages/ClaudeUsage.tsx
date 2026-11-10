@@ -1,6 +1,6 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { api } from '../lib/api';
-import { fmtDE, fmtRel } from '../lib/format';
+import { fmtDE, fmtLeft, fmtRel } from '../lib/format';
 import { mutateKey, useQuery } from '../lib/query';
 import { toastError } from '../lib/toast';
 import { Async, Bar, Card, Empty, Tabs } from '../ui';
@@ -13,6 +13,10 @@ interface Forecast {
   p_cap?: number | null; weeks?: number; signals?: { profile: number | null; last_week: number | null; rolling: number | null };
 }
 interface Hist { view: string; buckets?: { label: string; value: number }[]; grid?: number[][]; weekdays?: string[] }
+
+// 不用的模型的独立周额度：不显示（API 照样返回，恒为 0%，只占地方）
+const HIDDEN_SCOPED_MODELS = new Set(['Fable']);
+const shown = (l: Limit) => !(l.kind === 'weekly_scoped' && HIDDEN_SCOPED_MODELS.has(l.scope?.model?.display_name ?? ''));
 
 function label(l: Limit) {
   if (l.kind === 'session') return '5 小时窗口';
@@ -34,6 +38,9 @@ export function ClaudeUsagePage() {
   const [win, setWin] = useState('5h');
   const hist = useQuery<Hist>(`/api/claude-usage/history?view=${view}&window=${win}&days=30`, { staleMs: 120_000 });
   const [busy, setBusy] = useState(false);
+  // 倒计时精确到分钟，数据一分钟才拉一次且可能没变，所以单独每 30 秒重绘一次
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, []);
   const refresh = async () => {
     setBusy(true);
     try { await api('/api/claude-usage/refresh', { method: 'POST' }); mutateKey('/api/claude-usage'); mutateKey('/api/claude-usage/forecast'); }
@@ -43,7 +50,7 @@ export function ClaudeUsagePage() {
     <div class="page">
       <Card title="📊 Claude 账户用量" sub={<span class="row">{usage.data?.fetched_at && <span>更新于 {fmtRel(usage.data.fetched_at)}</span>}<button class="btn sm" disabled={busy} onClick={refresh}>刷新</button></span>}>
         <Async q={usage}>{(u) => {
-          let limits = u.data?.limits ?? [];
+          let limits = (u.data?.limits ?? []).filter(shown);
           if (!limits.length && u.data) {
             if (u.data.five_hour) limits = [...limits, { kind: 'session', percent: u.data.five_hour.utilization, resets_at: u.data.five_hour.resets_at }];
             if (u.data.seven_day) limits = [...limits, { kind: 'weekly_all', percent: u.data.seven_day.utilization, resets_at: u.data.seven_day.resets_at }];
@@ -59,7 +66,7 @@ export function ClaudeUsagePage() {
                     <b style={{ marginLeft: 'auto', color: `var(--${tone(l)})` }}>{Math.round(l.percent)}%</b>
                   </div>
                   <Bar pct={l.percent} color={tone(l)} />
-                  {l.resets_at && <div class="small muted" style={{ marginTop: 3 }}>{fmtDE(l.resets_at)} 重置（{fmtRel(l.resets_at)}）</div>}
+                  {l.resets_at && <div class="small muted" style={{ marginTop: 3 }}>{fmtDE(l.resets_at)} 重置（{fmtLeft(l.resets_at, now)}）</div>}
                   {l.kind === 'weekly_all' && fc.data?.ok && <ForecastLine f={fc.data} />}
                 </div>
               ))}

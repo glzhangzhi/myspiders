@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fmtBytes, fmtDE, fmtDur, fmtRel, localStamp } from '../format';
+import { fmtBytes, fmtDE, fmtDur, fmtLeft, fmtRel, localStamp } from '../format';
 import { fuzzy } from '../../shell/Palette';
 import { legacyHashRoute } from '../../shell/nav';
 
@@ -18,6 +18,13 @@ describe('format', () => {
     expect(fmtRel('2026-11-03T11:59:50Z', now)).toBe('刚刚');
     expect(fmtRel('2026-11-03T11:55:00Z', now)).toBe('5 分钟前');
     expect(fmtRel('2026-11-03T15:00:00Z', now)).toBe('3 小时后');
+  });
+  it('fmtLeft 精确到时分 / 天时，向下取整', () => {
+    const now = Date.parse('2026-11-03T12:00:00Z');
+    expect(fmtLeft('2026-11-03T12:45:30Z', now)).toBe('45 分钟后');
+    expect(fmtLeft('2026-11-03T14:15:00Z', now)).toBe('2 小时 15 分后');
+    expect(fmtLeft('2026-11-10T07:59:00Z', now)).toBe('6 天 19 小时后');
+    expect(fmtLeft('2026-11-03T11:00:00Z', now)).toBe('即将');
   });
   it('fmtBytes / fmtDur', () => {
     expect(fmtBytes(0)).toBe('0 B');
