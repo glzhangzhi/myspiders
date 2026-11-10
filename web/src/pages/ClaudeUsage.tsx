@@ -8,6 +8,10 @@ import { Bars } from '../ui/chart';
 
 interface Limit { kind: string; percent: number; severity?: string; resets_at?: string; scope?: { model?: { display_name?: string } } | null }
 interface Usage { ok: boolean; fetched_at?: number; last_error?: string | null; data?: { limits?: Limit[]; five_hour?: { utilization: number; resets_at: string }; seven_day?: { utilization: number; resets_at: string } } }
+interface Forecast {
+  ok: boolean; current?: number; predicted_end?: number; low?: number | null; high?: number | null;
+  p_cap?: number | null; weeks?: number; signals?: { profile: number | null; last_week: number | null; rolling: number | null };
+}
 interface Hist { view: string; buckets?: { label: string; value: number }[]; grid?: number[][]; weekdays?: string[] }
 
 function label(l: Limit) {
@@ -25,13 +29,14 @@ function tone(l: Limit): 'green' | 'yellow' | 'red' {
 
 export function ClaudeUsagePage() {
   const usage = useQuery<Usage>('/api/claude-usage', { refreshMs: 60_000 });
+  const fc = useQuery<Forecast>('/api/claude-usage/forecast', { refreshMs: 300_000 });
   const [view, setView] = useState<'hour' | 'weekday' | 'date' | 'heatmap'>('hour');
   const [win, setWin] = useState('5h');
   const hist = useQuery<Hist>(`/api/claude-usage/history?view=${view}&window=${win}&days=30`, { staleMs: 120_000 });
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
     setBusy(true);
-    try { await api('/api/claude-usage/refresh', { method: 'POST' }); mutateKey('/api/claude-usage'); }
+    try { await api('/api/claude-usage/refresh', { method: 'POST' }); mutateKey('/api/claude-usage'); mutateKey('/api/claude-usage/forecast'); }
     catch (e) { toastError(e); } finally { setBusy(false); }
   };
   return (
@@ -55,6 +60,7 @@ export function ClaudeUsagePage() {
                   </div>
                   <Bar pct={l.percent} color={tone(l)} />
                   {l.resets_at && <div class="small muted" style={{ marginTop: 3 }}>{fmtDE(l.resets_at)} 重置（{fmtRel(l.resets_at)}）</div>}
+                  {l.kind === 'weekly_all' && fc.data?.ok && <ForecastLine f={fc.data} />}
                 </div>
               ))}
             </div>
@@ -101,6 +107,31 @@ export function ClaudeUsagePage() {
           }}</Async>
         </div>
       </Card>
+    </div>
+  );
+}
+
+const r0 = (v?: number | null) => (v == null ? '–' : Math.round(v));
+
+/** 7 天窗口的周期结束预测。方法与回测见 docs/claude_usage.md：三信号平均，区间是本方法过去各周的真实误差。 */
+function ForecastLine({ f }: { f: Forecast }) {
+  const p = f.predicted_end ?? 0;
+  const hi = f.high ?? p;
+  const color = p >= 100 ? 'red' : hi >= 100 || p >= 85 ? 'yellow' : undefined;
+  const sig = f.signals;
+  const tip = [
+    '三个信号的平均：',
+    `周几画像（近 30 天）≈ ${r0(sig?.profile)}%`,
+    `上周同一时刻之后的用量 ≈ ${r0(sig?.last_week)}%`,
+    `滚动 7 天用量水平 ≈ ${r0(sig?.rolling)}%`,
+    f.low != null ? `区间：本方法过去 ${f.weeks} 周、相近剩余天数时的误差 5–95% 分位` : '历史周数不足，暂无区间',
+  ].join('\n');
+  return (
+    <div class="small" style={{ marginTop: 3 }} data-tip={tip}>
+      <span class="muted">周期结束预计 </span>
+      <b style={color ? { color: `var(--${color})` } : undefined}>≈ {r0(p)}%</b>
+      {f.low != null && <span class="muted">（{r0(f.low)}–{r0(f.high)}%）</span>}
+      {!!f.p_cap && <span style={{ color: 'var(--yellow)' }}> · 触顶概率约 {Math.round(f.p_cap * 100)}%</span>}
     </div>
   );
 }

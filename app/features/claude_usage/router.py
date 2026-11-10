@@ -42,6 +42,12 @@ async def refresh_usage(request: Request):
     return await claude_usage_manager.poll()
 
 
+@router.get("/forecast", summary="预测 7 天窗口结束时的用量（含经验区间）")
+async def get_forecast(request: Request):
+    _verify_token(request)
+    return claude_usage_manager.forecast()
+
+
 @router.get("/history", summary="Claude 用量消耗聚合（图表/热力图）")
 async def get_usage_history(
     request: Request,

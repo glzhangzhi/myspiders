@@ -40,6 +40,7 @@ import httpx
 from app.core.paths import DATA_DIR
 from app.core.logging import get_logger
 from app.core.settings import settings
+from app.features.claude_usage import forecast as forecast_mod
 from app.features.claude_usage.repo import claude_usage_repo
 from app.core import push as push_service
 
@@ -412,6 +413,16 @@ class ClaudeUsageManager:
         window_key = WINDOW_KEYS.get(window, "five_hour")
         samples = claude_usage_repo.samples_since(time.time() - days * 86400)
         return self._bucket(self._compute_deltas(samples, window_key), view, days)
+
+    def forecast(self) -> dict:
+        """7 天窗口结束时的用量预测 + 经验区间（方法与回测见 forecast.py / docs）。
+
+        误差池回放最近 RESIDUAL_WEEKS 周，画像再往前看 30 天；全量约 40ms，不缓存。
+        """
+        now = time.time()
+        span = (forecast_mod.RESIDUAL_WEEKS + 2) * 7 * 86400 + forecast_mod.PROFILE_DAYS * 86400
+        result = forecast_mod.forecast(claude_usage_repo.samples_since(now - span), now, self._tz)
+        return {"ok": result is not None, **(result or {})}
 
     def _bucket(self, deltas: list[tuple[datetime, float]], view: str, days: int) -> dict:
         if view == "weekday":
