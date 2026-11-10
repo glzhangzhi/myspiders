@@ -20,7 +20,7 @@ from app.clients.mongo import get_collection
 from app.core.settings import settings
 from app.features.lid.srs import new_state
 
-_FIELDS = ("qid", "level", "due", "streak", "seen", "correct", "wrong", "last_at", "wrongbook", "starred", "intro_on")
+_FIELDS = ("qid", "level", "due", "streak", "seen", "correct", "wrong", "last_at", "wrongbook", "starred", "intro_on", "relearn")
 
 
 class LidRepo:

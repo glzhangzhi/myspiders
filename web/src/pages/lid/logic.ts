@@ -8,7 +8,7 @@ export interface Question {
 export interface Bank { meta: Record<string, unknown>; questions: Question[] }
 export interface Progress {
   qid: string; level: number; due: string | null; streak: number; seen: number; correct: number; wrong: number;
-  last_at: string | null; wrongbook: boolean; starred: boolean; intro_on: string | null;
+  last_at: string | null; wrongbook: boolean; starred: boolean; intro_on: string | null; relearn?: boolean;
 }
 export type ZhMode = 'auto' | 'always' | 'never';
 

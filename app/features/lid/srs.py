@@ -9,8 +9,10 @@
 
 即从第一次答对算起 1 + 3 + 7 = 11 天掌握一题。
 
-- 答错（任何等级）→ 等级 1、到期日 = 今天、streak 归零、进错题本。
-  答错后本轮里会再出一次（前端负责）；那次答对就是「到期答对」，照常 1 → 2（+3 天）。
+- 答错（任何等级）→ 等级 1、到期日 = 今天、streak 归零、进错题本，并标记 relearn。
+- relearn 的题到期答对（通常是本轮里过 3–5 题后的那次重出）→ 留在等级 1、+1 天，清掉 relearn；
+  之后再按 1 → 2 → 3 → 4 升。即答错的题从下一次答对起同样要 11 天才掌握。
+  （最初版本让这次答对直接 1 → 2、+3 天，结果答错过的题反而比一次答对的题晚复习，2026-11-10 改掉。）
 - 提前作答（还没到期就答对）只计入统计和 streak，不升级 —— 随手刷题不打乱间隔。
 - promote=False（模拟考）：答对一律按提前作答处理；答错照常退回 1。
 - 错题本：答错时进入，streak >= 2 自动移出（也可以手动移出，见 service）。
@@ -37,7 +39,7 @@ def local_today(now: datetime, tz: str) -> date:
 
 def new_state(qid: str) -> dict:
     return {"qid": qid, "level": 0, "due": None, "streak": 0, "seen": 0, "correct": 0, "wrong": 0,
-            "last_at": None, "wrongbook": False, "starred": False, "intro_on": None}
+            "last_at": None, "wrongbook": False, "starred": False, "intro_on": None, "relearn": False}
 
 
 def apply_answer(state: Optional[dict], correct: bool, now: datetime, tz: str = "Europe/Berlin",
@@ -53,6 +55,7 @@ def apply_answer(state: Optional[dict], correct: bool, now: datetime, tz: str = 
         s["wrong"] = s.get("wrong", 0) + 1
         s["streak"] = 0
         s["wrongbook"] = True
+        s["relearn"] = True
         s["level"] = 1
         s["due"] = today.isoformat()
         if not s.get("intro_on"):
@@ -75,6 +78,9 @@ def apply_answer(state: Optional[dict], correct: bool, now: datetime, tz: str = 
         pass
     elif due is not None and due > today.isoformat():
         pass                                    # 提前作答：不升级
+    elif s.get("relearn"):
+        _set_level(s, 1, today)                 # 答错后的重新学：留在 1，+1 天
+        s["relearn"] = False
     else:
         _set_level(s, level + 1, today)
     return s
@@ -94,7 +100,10 @@ def remaining_days_to_master(s: dict, today: date) -> int:
         return DAYS_TO_MASTER
     due = date.fromisoformat(s["due"]) if s.get("due") else today
     start = max(0, (due - today).days)
-    return start + sum(INTERVAL[k] for k in range(level + 1, MASTERED))
+    rest = sum(INTERVAL[k] for k in range(level + 1, MASTERED))
+    if s.get("relearn"):
+        rest += INTERVAL[1]                     # 重新学那一步
+    return start + rest
 
 
 def predict_mastery(states: Iterable[dict], total: int, today: date, daily_new: int,

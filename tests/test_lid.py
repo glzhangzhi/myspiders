@@ -80,20 +80,44 @@ def test_wrong_at_any_level_resets_to_level1_today():
     assert (w["level"], w["due"]) == (1, d(20))
 
 
-def test_requeue_after_wrong_same_day_is_due():
-    """答错后到期日 = 今天：本轮里再出一次答对就是到期答对，升到 2。"""
+def test_requeue_after_wrong_relearns_at_level1():
+    """答错后本轮里重出那次答对：留在 1 级、明天再考，不跳到 2 级。"""
     w = apply_answer(new_state("1"), False, at(0), TZ)
+    assert w["relearn"] is True
     s = apply_answer(w, True, at(0, 10), TZ)
-    assert (s["level"], s["due"], s["streak"]) == (2, d(3), 1)
+    assert (s["level"], s["due"], s["streak"], s["relearn"]) == (1, d(1), 1, False)
+    # 之后照常 1 → 2 → 3 → 4，从重新学那次答对起 11 天掌握
+    s = apply_answer(s, True, at(1), TZ)
+    assert (s["level"], s["due"]) == (2, d(4))
+    s = apply_answer(s, True, at(4), TZ)
+    s = apply_answer(s, True, at(11), TZ)
+    assert s["level"] == 4
+
+
+def test_wrong_question_never_scheduled_later_than_first_time_correct():
+    ok = apply_answer(new_state("1"), True, at(0), TZ)
+    w = apply_answer(apply_answer(new_state("2"), False, at(0), TZ), True, at(0, 10), TZ)
+    assert w["due"] <= ok["due"]
+
+
+def test_relearn_survives_early_and_exam_answers():
+    w = apply_answer(apply_answer(new_state("1"), False, at(0), TZ), True, at(0, 10), TZ)   # 1, due d(1)
+    e = apply_answer(w, True, at(0, 20), TZ)                                                # 提前作答
+    assert (e["level"], e["due"]) == (1, d(1))
+    w2 = apply_answer(new_state("1"), False, at(0), TZ)
+    e2 = apply_answer(w2, True, at(0, 10), TZ, promote=False)                               # 模拟考答对
+    assert e2["relearn"] is True and e2["level"] == 1
+    s = apply_answer(e2, True, at(0, 12), TZ)                                               # 之后练习仍是重新学
+    assert (s["level"], s["due"], s["relearn"]) == (1, d(1), False)
 
 
 def test_wrongbook_leaves_at_streak_2():
     s = apply_answer(new_state("1"), False, at(0), TZ)
     s = apply_answer(s, True, at(0, 10), TZ)
     assert s["wrongbook"] is True and s["streak"] == 1
-    s = apply_answer(s, True, at(3), TZ)
-    assert s["wrongbook"] is False and s["streak"] == 2
-    s = apply_answer(s, False, at(4), TZ)
+    s = apply_answer(s, True, at(1), TZ)
+    assert s["wrongbook"] is False and s["streak"] == 2 and s["level"] == 2
+    s = apply_answer(s, False, at(2), TZ)
     assert s["wrongbook"] is True
 
 
@@ -126,6 +150,9 @@ def test_predict_mastery():
     s["qid"] = "1"
     p = predict_mastery([s], 1, today, 55, 54)
     assert p["days"] == 1 + 3 + 7 and p["new_remaining"] == 0
+    w = apply_answer(new_state("2"), False, at(0), TZ)   # 刚答错：今天重新学 → +1 → 2 级 +3 → 3 级 +7
+    w["qid"] = "2"
+    assert predict_mastery([w], 1, today, 55, 54)["days"] == 1 + 3 + 7
 
 
 # ── 模拟考 ──
