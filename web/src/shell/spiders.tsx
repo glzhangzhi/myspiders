@@ -1,5 +1,6 @@
 import { signal } from '@preact/signals';
 import { useMemo, useState } from 'preact/hooks';
+import { usePersisted } from '../lib/persist';
 import { api } from '../lib/api';
 import { fmtDE, fmtDur, fmtRel } from '../lib/format';
 import { useEventSource } from '../lib/sse';
@@ -53,10 +54,12 @@ export function statusOf(s: Spider): { tone: 'green' | 'red' | 'yellow' | undefi
 const CATS: Record<string, string> = { monitor: '监控', system: '系统', claude: 'Claude', nintendo: 'Nintendo', software: '软件', av: '影片', media: '媒体', general: '通用' };
 
 export function SpidersDrawer(p: { onClose: () => void; conn: string }) {
-  const [cat, setCat] = useState('all');
+  const [savedCat, setCat] = usePersisted('spiders.cat', 'all');
   const [open, setOpen] = useState<string | null>(null);
   const list = spiders.value;
   const cats = useMemo(() => ['all', ...new Set(list.map((s) => s.category))], [list]);
+  // 记住的分类可能已经没有爬虫了（或列表还没到）：当「全部」显示，但不覆盖存的值
+  const cat = cats.includes(savedCat) ? savedCat : 'all';
   const shown = list.filter((s) => cat === 'all' || s.category === cat);
   const failed = list.filter((s) => s.enabled && s.last_status === 'failed').length;
   return (

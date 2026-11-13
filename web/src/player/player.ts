@@ -100,12 +100,18 @@ function installMediaSession() {
   // 不注册 previoustrack / nexttrack：没有「下一条」，系统会用快进快退按钮代替
 }
 
+/** 轨道可以是 blob: 地址（功能页从本机存储取出来的）：换轨/关闭时释放，否则整段音频一直占着内存。 */
+function releaseBlob(a: HTMLAudioElement) {
+  if (a.src.startsWith('blob:')) URL.revokeObjectURL(a.src);
+}
+
 export function play(t: Track) {
   const a = el();
   const cur = player.value.track;
   if (cur && cur.id === t.id && a.src) { void a.play(); return; }
   if (cur) save(true);
   set({ track: t, playing: false, pos: t.startAt ?? 0, dur: t.duration ?? 0, loading: true, error: null });
+  releaseBlob(a);
   a.src = t.url;
   const start = t.startAt ?? 0;
   if (start > 0) {
@@ -138,6 +144,7 @@ export function stop() {
   if (!audio) return;
   save(true);
   audio.pause();
+  releaseBlob(audio);
   audio.removeAttribute('src');
   audio.load();
   set({ track: null, playing: false, pos: 0, dur: 0, loading: false, error: null });

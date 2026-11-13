@@ -256,11 +256,11 @@ html.embedded header { justify-content: flex-end; }
       <input type="text" id="cm-q" placeholder="按卡名或记录名筛选…" style="min-width:200px"
              oninput="renderOverview()">
       <label class="muted" style="display:flex;align-items:center;gap:5px;cursor:pointer">
-        <input type="checkbox" id="cm-only-junk" onchange="renderOverview()">
+        <input type="checkbox" id="cm-only-junk" onchange="lsSet('tavern.cmOnlyJunk',this.checked?'1':'0');renderOverview()">
         只看「我一句没说」
       </label>
       <label class="muted" style="display:flex;align-items:center;gap:5px;cursor:pointer">
-        <input type="checkbox" id="cm-group" onchange="renderOverview()">
+        <input type="checkbox" id="cm-group" onchange="lsSet('tavern.cmGroup',this.checked?'1':'0');renderOverview()">
         按角色卡分组
       </label>
       <span class="grow"></span>
@@ -283,7 +283,8 @@ const TOKEN = getToken() || '';
 const TYPES = ['角色卡', '世界书', '预设'];
 const TYPE_ICON = { '角色卡': '🃏', '世界书': '📖', '预设': '⚙️' };
 
-let activeType = '';      // '' = 全部
+// 类型筛选记在本机浏览器；存的值不是已知类型就回「全部」
+let activeType = (t => TYPES.includes(t) ? t : '')(lsGet('tavern.type', ''));      // '' = 全部
 let entries = [];
 let busy = false;
 let searchTimer = null;
@@ -320,6 +321,7 @@ function renderChips() {
 
 function setType(t) {
   activeType = t;
+  lsSet('tavern.type', t);
   renderChips();
   doSearch();
 }
@@ -636,7 +638,7 @@ const FMTS = [
   { v: 'jsonl', label: '原始 JSONL', tip: '酒馆原文件，可导回酒馆' }
 ];
 function curFmt() {
-  const v = localStorage.getItem(FMT_KEY);
+  const v = lsGet(FMT_KEY, null);
   return FMTS.some(f => f.v === v) ? v : 'md';
 }
 
@@ -672,7 +674,7 @@ async function openChats(cardName) {
   });
   sel.value = curFmt();
   sel.addEventListener('change', () => {
-    localStorage.setItem(FMT_KEY, sel.value);
+    lsSet(FMT_KEY, sel.value);
     hintFmt.textContent = (FMTS.find(f => f.v === sel.value) || {}).tip || '';
   });
   bar.appendChild(sel);
@@ -900,6 +902,12 @@ let overview = null;         // 后端原样返回
 let cmRows = [];             // 摊平后的全部记录
 let cmSel = new Set();       // 选中项的 key
 let cmSort = { by: 'user_messages', asc: true };  // 默认把「我一句没说」顶上来
+// 排序列与方向记在本机浏览器（tavern.cmSort = "列名:asc|desc"）；列名不认识就用默认
+{
+  const [by, dir] = lsGet('tavern.cmSort', '').split(':');
+  if (['card', 'title', 'messages', 'user_messages', 'size', 'modified'].includes(by))
+    cmSort = { by: by, asc: dir === 'asc' };
+}
 let cmOps = { reachable: false, lock_hours: 72, remote: '' };
 
 // 一份记录的唯一键。卡名 + 文件名 —— 不同卡下可以有同名文件。
@@ -977,6 +985,7 @@ function cmSetSort(by) {
   if (cmSort.by === by) cmSort.asc = !cmSort.asc;
   // 数值列默认降序（想看最大的），名称与「我说了几句」默认升序
   else cmSort = { by: by, asc: by === 'card' || by === 'title' || by === 'user_messages' };
+  lsSet('tavern.cmSort', cmSort.by + ':' + (cmSort.asc ? 'asc' : 'desc'));
   renderOverview();
 }
 
@@ -1321,6 +1330,9 @@ async function loadCatalog(refresh) {
 
 async function init() {
   if (typeof mountTokenBar === 'function') mountTokenBar();
+  // 总表的两个开关在首次渲染前恢复
+  document.getElementById('cm-only-junk').checked = lsGet('tavern.cmOnlyJunk', '0') === '1';
+  document.getElementById('cm-group').checked = lsGet('tavern.cmGroup', '0') === '1';
   renderChips();
   await loadEntries();
   await loadCatalog(false);

@@ -378,7 +378,7 @@ html.embedded header { justify-content: flex-end; }
    数据全部走 /api/finance/*，持久化在 Mongo。
 
    前端只保留**视图状态**（当前月份、筛选器、展开哪一条、图表口径）——
-   这些刷新后重置无所谓，落库反而碍事。凡是"用户的劳动成果"（分类、标签、
+   落库反而碍事；其中页签/月份/筛选/口径记在本机 localStorage（见下方视图状态）。凡是"用户的劳动成果"（分类、标签、
    备注、确认状态、封账）一律立刻落库。
 
    ## 为什么保留一份内存副本 ALL
@@ -429,12 +429,14 @@ let rules = {};
 let done = {};                // {月份: true} 封账状态
 let statements = [];
 
-/* ── 视图状态（不落库）── */
+/* ── 视图状态（不落库）──
+   页签、整理月份、状态/性质筛选、口径开关记在本机浏览器（finance.*），刷新后回到原处；
+   恢复时校验取值，对不上就回默认。搜索词、选中行、展开行不记。 */
 let reviewMonth = null;
 let sumMonths = new Set();
 let hiddenCats = new Set();
-let filterStatus = 'todo';
-let filterKind = 'all';
+let filterStatus = ['todo', 'done', 'all'].includes(lsGet('finance.status', '')) ? lsGet('finance.status', '') : 'todo';
+let filterKind = (k => k === 'all' || k in KINDS ? k : 'all')(lsGet('finance.kind', 'all'));
 let selIdx = -1;
 let openId = null;
 
@@ -546,7 +548,7 @@ function renderMonthChips(elId, mode) {
   }).join('');
   el.querySelectorAll('.mchip').forEach(c => c.onclick = () => {
     const m = c.dataset.m;
-    if (mode === 'review') { reviewMonth = m; selIdx = -1; openId = null; renderReview(); }
+    if (mode === 'review') { reviewMonth = m; lsSet('finance.reviewMonth', m); selIdx = -1; openId = null; renderReview(); }
     else { sumMonths.has(m) ? sumMonths.delete(m) : sumMonths.add(m); renderSummary(); }
   });
 }
@@ -593,12 +595,12 @@ function renderReview() {
     ['all','全部', list.length],
   ].map(([k,l,n]) => `<div class="chip ${filterStatus===k?'active':''}" data-s="${k}">${l}<span class="cnt">${n}</span></div>`).join('');
   document.getElementById('f-status').querySelectorAll('.chip').forEach(c =>
-    c.onclick = () => { filterStatus = c.dataset.s; selIdx = -1; renderReview(); });
+    c.onclick = () => { filterStatus = c.dataset.s; lsSet('finance.status', filterStatus); selIdx = -1; renderReview(); });
   document.getElementById('f-kind').innerHTML =
     [['all','全部',cnt.all]].concat(Object.entries(KINDS).map(([k,v]) => [k, v.label, cnt[k]]))
     .map(([k,l,n]) => `<div class="chip ${filterKind===k?'active':''}" data-k="${k}">${l}<span class="cnt">${n}</span></div>`).join('');
   document.getElementById('f-kind').querySelectorAll('.chip').forEach(c =>
-    c.onclick = () => { filterKind = c.dataset.k; selIdx = -1; renderReview(); });
+    c.onclick = () => { filterKind = c.dataset.k; lsSet('finance.kind', filterKind); selIdx = -1; renderReview(); });
 
   const rows = filtered();
   const el = document.getElementById('tx-list');
@@ -1489,19 +1491,27 @@ function showToast(msg, type) {
 
 /* ══════════ 启动 ══════════ */
 
-document.querySelectorAll('.ptab').forEach(b => b.onclick = () => {
+function showPane(b) {
   document.querySelectorAll('.ptab').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.pane').forEach(x => x.classList.remove('active'));
   b.classList.add('active');
   document.getElementById('pane-' + b.dataset.pane).classList.add('active');
+}
+document.querySelectorAll('.ptab').forEach(b => b.onclick = () => {
+  showPane(b);
+  lsSet('finance.pane', b.dataset.pane);
   if (b.dataset.pane === 'summary') renderSummary();
 });
+// 恢复上次的页签。只切 DOM，数据到了 boot() 里两个页面都会渲染
+{ const b = document.querySelector(`.ptab[data-pane="${lsGet('finance.pane', '')}"]`); if (b) showPane(b); }
 
 // 页面级口径开关。绑定一次即可 —— renderSummary 只改 .active 类，不重建这几个节点
 document.querySelectorAll('#fx-mode .chip').forEach(c => c.onclick = () => {
   window._fxOnlyVar = c.dataset.m === 'var';
+  lsSet('finance.fxMode', c.dataset.m);
   renderSummary();
 });
+if (lsGet('finance.fxMode', '') === 'all') window._fxOnlyVar = false;
 
 /* 一次取齐启动数据。keepView=true 时保留当前选中的月份与筛选（导入后刷新用）。 */
 async function boot(keepView) {
@@ -1531,7 +1541,9 @@ async function boot(keepView) {
     return true;
   }
 
-  reviewMonth = (keepView && MONTHS.includes(prevMonth)) ? prevMonth : MONTHS[0];
+  const savedMonth = lsGet('finance.reviewMonth', '');
+  reviewMonth = (keepView && MONTHS.includes(prevMonth)) ? prevMonth
+    : MONTHS.includes(savedMonth) ? savedMonth : MONTHS[0];
   sumMonths = keepView && prevSum.size
     ? new Set([...prevSum].filter(m => MONTHS.includes(m)))
     : loadSumMonths();

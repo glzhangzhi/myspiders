@@ -24,6 +24,17 @@ function getToken() {
   return localStorage.getItem('myspiders-token') || '';
 }
 
+// ── 界面选择状态的本地记忆（标签、时间跨度、筛选、排序…）──
+// key 命名 `<页面>.<东西>`，如 media.tab、mercor2.trendSpan。值一律按字符串存取：
+// 恢复时调用方自己校验（选项可能已被删掉），不合法就回退默认值。
+// 隐私模式 / 存储满 / 被禁用时 localStorage 会抛错，这里吞掉 —— 记不住不该让页面挂掉。
+function lsGet(key, fallback) {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : v; } catch (e) { return fallback; }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, String(value)); } catch (e) {}
+}
+
 // 轻量 admin token 输入条：在右上角挂一个输入框 + 保存按钮。
 // 历史原因：tele./av. 曾是独立子域，与主面板不同源、localStorage 不共享，需各自设置一次。
 // 迁到本机后只有一个 origin(localhost:12312)，且这两个页面已作为同源 iframe 内嵌进主面板

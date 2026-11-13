@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { oneOf, usePersisted } from '../lib/persist';
 import { api } from '../lib/api';
 import { fmtDE, fmtLeft, fmtRel } from '../lib/format';
 import { mutateKey, useQuery } from '../lib/query';
@@ -34,8 +35,8 @@ function tone(l: Limit): 'green' | 'yellow' | 'red' {
 export function ClaudeUsagePage() {
   const usage = useQuery<Usage>('/api/claude-usage', { refreshMs: 60_000 });
   const fc = useQuery<Forecast>('/api/claude-usage/forecast', { refreshMs: 300_000 });
-  const [view, setView] = useState<'hour' | 'weekday' | 'date' | 'heatmap'>('hour');
-  const [win, setWin] = useState('5h');
+  const [view, setView] = usePersisted<'hour' | 'weekday' | 'date' | 'heatmap'>('claude_usage.view', 'hour', oneOf('hour', 'weekday', 'date', 'heatmap'));
+  const [win, setWin] = usePersisted('claude_usage.win', '5h', oneOf('5h', '7d'));
   const hist = useQuery<Hist>(`/api/claude-usage/history?view=${view}&window=${win}&days=30`, { staleMs: 120_000 });
   const [busy, setBusy] = useState(false);
   // 倒计时精确到分钟，数据一分钟才拉一次且可能没变，所以单独每 30 秒重绘一次

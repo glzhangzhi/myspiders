@@ -218,8 +218,8 @@ html.embedded header { justify-content: flex-end; }
                  oninput="debouncedSearch()">
         </div>
         <div class="panel-row" style="gap:10px;margin-bottom:12px;flex-wrap:wrap;">
-          <label class="inline"><input type="checkbox" id="mine-only" onchange="reload()"> 只看我的<span id="mine-cnt" style="opacity:.6;font-size:10px"></span></label>
-          <label class="inline"><input type="checkbox" id="fav-only" onchange="reload()"> 只看收藏</label>
+          <label class="inline"><input type="checkbox" id="mine-only" onchange="lsSet('recipe.mineOnly',this.checked?'1':'0');reload()"> 只看我的<span id="mine-cnt" style="opacity:.6;font-size:10px"></span></label>
+          <label class="inline"><input type="checkbox" id="fav-only" onchange="lsSet('recipe.favOnly',this.checked?'1':'0');reload()"> 只看收藏</label>
           <button class="btn btn-sm btn-ghost" onclick="clearFilters()">清空</button>
         </div>
         <div class="panel-row" style="margin-bottom:12px;">
@@ -236,7 +236,7 @@ html.embedded header { justify-content: flex-end; }
           <span id="count-text" style="color:var(--text-dim)">加载中…</span>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <select id="sort-by" onchange="reload()" style="font-size:11px;padding:3px 8px;">
+          <select id="sort-by" onchange="lsSet('recipe.sort',this.value);reload()" style="font-size:11px;padding:3px 8px;">
             <option value="created_at">最近添加</option>
             <option value="title">按菜名</option>
             <option value="last_pushed_at">最近推送</option>
@@ -409,6 +409,7 @@ function clearFilters() {
   document.getElementById('q').value = '';
   document.getElementById('fav-only').checked = false;
   document.getElementById('mine-only').checked = false;
+  lsSet('recipe.favOnly', '0'); lsSet('recipe.mineOnly', '0');
   reload();
 }
 function debouncedSearch() {
@@ -1374,8 +1375,18 @@ async function doImportMd() {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
+// 恢复排序与「只看我的/收藏」两个开关（记在本机浏览器）。必须在第一次 reload() 之前。
+// 标签/分类筛选不记：自定义标签和分类只在 facet 计数 >0 时才渲染，记住一个已失效的
+// 就成了看不见、也点不掉的隐形筛选（只能靠「清空」碰运气）。
+function restoreRecipeUi() {
+  const sort = document.getElementById('sort-by'), v = lsGet('recipe.sort', null);
+  if (v !== null && [...sort.options].some(o => o.value === v)) sort.value = v;
+  document.getElementById('mine-only').checked = lsGet('recipe.mineOnly', '0') === '1';
+  document.getElementById('fav-only').checked = lsGet('recipe.favOnly', '0') === '1';
+}
 (async function init() {
   mountTokenBar();
+  restoreRecipeUi();
   try { VOCAB = await api('/tags'); } catch (e) { showToast('标签词表加载失败', 'error'); }
   await Promise.all([reload(), loadMenu()]);
   checkKindle();

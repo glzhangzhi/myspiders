@@ -16,9 +16,9 @@ class RecipeSettings(BaseModel):
     kindle_ssh_port: int = 2222
     kindle_ssh_key: str = "~/.ssh/id_ed25519"
     kindle_ssh_timeout: int = 10           # 连接超时秒数；Kindle 休眠时会直接失败而不是干等
-    # 跳板（2026-10-31 服务搬到 Oracle 后）：Kindle 只在家里局域网，服务器够不着，
-    # 经 Pi（同一局域网、已在 tailnet）ProxyJump 过去。值是 ssh 能解析的目标，
-    # 如 "pi@home-gateway"（~/.ssh/config 别名）。空 = 直连（服务在家里时）。
+    # 跳板：服务不在家里局域网时，经一台在同一局域网、又能从服务器 ssh 到的机器转过去
+    # （ProxyCommand ssh -W）。值是 ssh 能解析的目标，如 "kindle-relay"（~/.ssh/config 别名）。
+    # 空 = 直连（服务在家里时）。跳板机器关机时推送直接失败，check_kindle() 会报出来。
     kindle_ssh_jump: str = ""
     # 推送目标目录。**单独建一个子目录**，不要直接丢进 documents 根 ——
     # 那里是书库，混进一堆菜单文件会把书淹掉。push_text 自带 mkdir -p，

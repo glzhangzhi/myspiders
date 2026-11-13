@@ -213,6 +213,8 @@ td.nowrap { white-space:nowrap; color:var(--text-dim); }
 const API = '/api/media';
 const S = { status: null, sources: [], items: [], counts: {}, tab: 'pending', filter: '', runs: [] };
 const TABS = [['pending','待下载'],['downloading','下载中'],['done','已完成'],['failed','失败'],['skipped','已跳过']];
+// 队列标签记在本地：刷新后回到上次看的那一栏（存的值已不在 TABS 里就回默认）
+{ const t = lsGet('media.tab', ''); if (TABS.some(x => x[0] === t)) S.tab = t; }
 const PLAT = { wx: '视频号', yt: 'YouTube' };
 
 function esc(s) { return esc2(s == null ? '' : s); }
@@ -546,7 +548,7 @@ async function loadItems() {
   catch (e) { showToast(e.message, 'err'); }
   renderItems();
 }
-function setTab(t) { if (t !== S.tab) selClear('items'); S.tab = t; loadItems(); }
+function setTab(t) { if (t !== S.tab) selClear('items'); S.tab = t; lsSet('media.tab', t); loadItems(); }
 function renderItems() {
   document.getElementById('tabs').innerHTML = TABS.map(([k, l]) =>
     `<button class="tab ${S.tab === k ? 'on' : ''}" onclick="setTab('${k}')">${l}<span class="n">${S.counts[k] || 0}</span></button>`).join('') +

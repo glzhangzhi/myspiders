@@ -205,8 +205,11 @@ const PARTS = [
 ];
 // 每日图的来源配色。--green 是全站「成功/在线」的状态色，不拿来当数据色。
 const SOURCE_COLOR = { dsh: 'var(--blue)', 'dsh-deepseek': 'var(--purple)', tavern: 'var(--yellow)', liyuan: 'var(--accent)' };
-const state = { month: null, target: localStorage.getItem('llmUsage.target') || 'deepseek-flash',
-                force: localStorage.getItem('llmUsage.force') === '1' };
+// 估价模型与「强制重算」记在本机浏览器（key 沿用 llmUsage.*，改名会丢掉已有设置）。
+// 存的模型已不在按钮里就回 Flash —— 否则没有一颗按钮亮着，后端还按未知模型算。
+const state = { month: null, target: lsGet('llmUsage.target', 'deepseek-flash'),
+                force: lsGet('llmUsage.force', '0') === '1' };
+if (!['deepseek-flash', 'deepseek-v4-pro'].includes(state.target)) state.target = 'deepseek-flash';
 
 const fmtUSD = v => '$' + (v || 0).toFixed((v || 0) >= 100 ? 0 : 2);
 const fmtN = v => (v || 0).toLocaleString();
@@ -277,7 +280,7 @@ function render(s) {
   renderWindow(s.window);
 }
 
-const openCats = new Set(JSON.parse(localStorage.getItem('llmUsage.openCats') || '[]'));
+const openCats = new Set((() => { try { return JSON.parse(lsGet('llmUsage.openCats', '[]')) || []; } catch (e) { return []; } })());
 function renderProjects(p) {
   const hr = v => v == null ? '<span class="dim">—</span>' : v.toFixed(1) + '%';
   const max = Math.max(0.0001, ...p.categories.map(c => c.share_pct));
@@ -305,7 +308,7 @@ document.getElementById('projects').onclick = e => {
   row.classList.toggle('open', open);
   document.querySelectorAll('#projects .proj-row').forEach(r => { if (r.dataset.parent === cat) r.classList.toggle('hidden', !open); });
   open ? openCats.add(cat) : openCats.delete(cat);
-  localStorage.setItem('llmUsage.openCats', JSON.stringify([...openCats]));
+  lsSet('llmUsage.openCats', JSON.stringify([...openCats]));
 };
 
 function renderDaily(d) {
@@ -369,12 +372,12 @@ async function loadMonths() {
 document.getElementById('monthSel').onchange = e => { state.month = e.target.value; load(); };
 document.getElementById('targetSeg').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
-  state.target = b.dataset.t; localStorage.setItem('llmUsage.target', state.target);
+  state.target = b.dataset.t; lsSet('llmUsage.target', state.target);
   document.querySelectorAll('#targetSeg button').forEach(x => x.classList.toggle('active', x === b));
   load();
 };
 document.getElementById('forceChk').onchange = e => {
-  state.force = e.target.checked; localStorage.setItem('llmUsage.force', state.force ? '1' : '0'); load();
+  state.force = e.target.checked; lsSet('llmUsage.force', state.force ? '1' : '0'); load();
 };
 document.getElementById('btnIngest').onclick = async function () {
   this.disabled = true; this.textContent = '导入中…';

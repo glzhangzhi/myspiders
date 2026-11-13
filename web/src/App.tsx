@@ -12,6 +12,7 @@ import { loadSpiders, SpidersDrawer, useSpiderStream } from './shell/spiders';
 import { TokenDialog } from './shell/TokenDialog';
 import { Toolbox } from './shell/Toolbox';
 import { PlayerBar } from './player/PlayerBar';
+import { loadPersisted, savePersisted } from './lib/persist';
 import { toastError, toasts } from './lib/toast';
 import { Empty, Skeleton } from './ui';
 
@@ -31,11 +32,18 @@ const NATIVE_PAGES: Record<string, () => preact.JSX.Element> = {
 };
 const DEFAULT = 'health';
 
+const known = (id: string) => !!NATIVE_PAGES[id] || !!navById.value.get(id)?.legacy_url;
+
 function Page(p: { params?: { id?: string } }) {
   const id = p.params?.id || DEFAULT;
   const item = navById.value.get(id);
   const Native = NATIVE_PAGES[id];
   useEffect(() => { document.title = `${item?.title ?? 'MySpiders'} · MySpiders`; }, [item]);
+  // 记住最后打开的页面：下次直接打开 /dashboard 时回到这里（只记存在的页面）
+  // 只记 URL 里明写的 id：光秃秃的 /dashboard 也渲染默认页，而子组件 effect 先于外壳的跳转 effect 执行，
+  // 这时记下默认页会把「上次的页面」冲掉，跳转永远不发生。
+  const explicit = p.params?.id;
+  useEffect(() => { if (explicit && known(explicit)) savePersisted('lastPage', explicit); }, [explicit, navLoaded.value]);
   if (Native) return <Native />;
   if (!navLoaded.value) return <div class="page"><Skeleton lines={6} h={18} /></div>;
   if (item?.legacy_url) return <Embedded src={item.legacy_url} title={item.title} />;
@@ -73,6 +81,14 @@ function Shell() {
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, []);
+
+  // 光秃秃的 /dashboard（书签、主屏图标）→ 回到上次打开的页面。旧面板 hash 书签优先（上面已处理）。
+  // 原生页立刻跳；旧页面要等导航清单到了才知道它还在不在。
+  useEffect(() => {
+    if (!/^\/(dashboard\/?)?$/.test(loc.path) || location.hash) return;
+    const last = loadPersisted('lastPage', '');
+    if (last && last !== DEFAULT && (NATIVE_PAGES[last] || (navLoaded.value && known(last)))) loc.route(`/dashboard/${last}`, true);
+  }, [navLoaded.value]);
 
   const close = () => setOverlay(null);
   return (

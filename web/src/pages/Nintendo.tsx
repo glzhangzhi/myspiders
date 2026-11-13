@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { oneOf, usePersisted } from '../lib/persist';
 import { fmtDE } from '../lib/format';
 import { useQuery } from '../lib/query';
 import { Async, Badge, Card, Empty, Stat, Table } from '../ui';
@@ -8,6 +9,10 @@ interface Game {
   updated_at?: string; on_sale?: boolean; sale_ended_at?: string | null;
 }
 type Sort = 'discount' | 'price' | 'updated';
+function legacySort(): Sort {
+  try { const v = localStorage.getItem('nin-sort'); if (v === 'price' || v === 'updated') return v; } catch { /* ignore */ }
+  return 'discount';
+}
 
 const onSale = (g: Game) => g.on_sale !== false;
 const ts = (s?: string | null) => (s ? new Date(s).getTime() : 0);
@@ -20,14 +25,14 @@ const ts = (s?: string | null) => (s ? new Date(s).getTime() : 0);
 export function NintendoPage() {
   const all = useQuery<Game[]>('/api/nintendo/prices', { staleMs: 300_000 });
   const fresh = useQuery<Game[]>('/api/nintendo/discounts/new', { staleMs: 300_000 });
-  const [minDisc, setMinDisc] = useState(30);
-  const [maxPrice, setMaxPrice] = useState('');
+  const [minDisc, setMinDisc] = usePersisted('nintendo.minDisc', 30);
+  const [maxPrice, setMaxPrice] = usePersisted('nintendo.maxPrice', '');
   const [q, setQ] = useState('');
-  const [sort, setSort] = useState<Sort>(() => (localStorage.getItem('nin-sort') as Sort) || 'discount');
-  const [withEnded, setWithEnded] = useState(false);
+  // 旧 key `nin-sort` 是裸字符串，读一次当默认值，之后统一存到 ui.nintendo.sort
+  const [sort, pickSort] = usePersisted<Sort>('nintendo.sort', legacySort(), oneOf('discount', 'price', 'updated'));
+  const [withEnded, setWithEnded] = usePersisted('nintendo.withEnded', false);
   const [showAll, setShowAll] = useState(false);
   const search = useQuery<Game[]>(q.trim().length >= 1 ? `/api/nintendo/search?q=${encodeURIComponent(q.trim())}` : null, { staleMs: 300_000 });
-  const pickSort = (s: Sort) => { setSort(s); localStorage.setItem('nin-sort', s); };
 
   const rows = useMemo(() => {
     const searching = !!q.trim();
