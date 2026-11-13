@@ -1,5 +1,5 @@
 import { useRef, useState } from 'preact/hooks';
-import { fmtClock, player, seek, seekBy, stop, toggle } from './player';
+import { fmtClock, player, playerExtra, seek, seekBy, stop, toggle } from './player';
 import './player.css';
 
 /** 外壳层的全局播放条：没有轨道时不渲染。拖动时只改显示，松手才 seek（手机上拖动更稳）。 */
@@ -7,6 +7,7 @@ export function PlayerBar() {
   const s = player.value;
   const [drag, setDrag] = useState<number | null>(null);
   const bar = useRef<HTMLInputElement>(null);
+  const Extra = playerExtra.value;
   if (!s.track) return null;
   const dur = s.dur || s.track.duration || 0;
   const pos = drag ?? s.pos;
@@ -22,6 +23,7 @@ export function PlayerBar() {
           {s.loading && s.playing ? '…' : s.playing ? '❚❚' : '▶'}
         </button>
         <button class="player-btn" onClick={() => seekBy(30)} aria-label="快进 30 秒">↻<small>30</small></button>
+        {Extra && <Extra />}
         <button class="player-btn close" onClick={stop} aria-label="关闭播放器">✕</button>
       </div>
       <div class="player-seek">
