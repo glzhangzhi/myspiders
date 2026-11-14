@@ -24,6 +24,12 @@ code, pre, .mono { font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo
 }
 .topbar h1 { font-size: 15px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
 .topbar .spacer { flex: 1; }
+/* 旧页面经 postMessage 放到标题右边的标签（shell/pageChips.ts），实心底色表示状态 */
+.page-chip { border: 0; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--bg); background: var(--grey); white-space: nowrap; }
+.page-chip:hover { filter: brightness(1.12); }
+.page-chip.blue { background: var(--blue); } .page-chip.green { background: var(--green); }
+.page-chip.red { background: var(--red); } .page-chip.yellow { background: var(--yellow); }
+.page-chip.accent { background: var(--accent); }
 .content { flex: 1; overflow: auto; }
 .page { padding: 20px 22px 40px; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .embed { width: 100%; height: 100%; border: 0; display: block; background: var(--bg); }

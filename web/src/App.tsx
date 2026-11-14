@@ -7,6 +7,7 @@ import { QimenPage } from './pages/Qimen';
 import { SystemPage } from './pages/System';
 import { legacyHashRoute, loadNav, moduleErrors, navById, navLoaded } from './shell/nav';
 import { Palette } from './shell/Palette';
+import { clickPageChip, listenPageChips, pageChips } from './shell/pageChips';
 import { mobileOpen, Sidebar } from './shell/Sidebar';
 import { loadSpiders, SpidersDrawer, useSpiderStream } from './shell/spiders';
 import { TokenDialog } from './shell/TokenDialog';
@@ -58,6 +59,9 @@ function Topbar() {
     <header class="topbar">
       <button class="btn ghost sm show-mobile" onClick={() => (mobileOpen.value = true)} aria-label="打开导航">☰</button>
       <h1>{item?.icon} {item?.title ?? '系统'}</h1>
+      {(pageChips.value[id] ?? []).map((c) => (
+        <button key={c.id} class={`page-chip ${c.tone}`} title={c.title} onClick={() => clickPageChip(id, c.id)}>{c.label}</button>
+      ))}
       <span class="spacer" />
       {moduleErrors.value.length > 0 && <span class="badge red" title={moduleErrors.value.map((m) => `${m.id}: ${m.error}`).join('\n')}>{moduleErrors.value.length} 个模块加载失败</span>}
     </header>
@@ -71,6 +75,7 @@ function Shell() {
 
   useEffect(() => {
     loadNav().catch(toastError);
+    const offChips = listenPageChips();
     loadSpiders().catch(() => {});
     // 旧面板的 hash 书签（/dashboard#mercor）
     const r = legacyHashRoute(location.hash);
@@ -79,7 +84,7 @@ function Shell() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setOverlay((o) => (o === 'palette' ? null : 'palette')); }
     };
     window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
+    return () => { window.removeEventListener('keydown', k); offChips(); };
   }, []);
 
   // 光秃秃的 /dashboard（书签、主屏图标）→ 回到上次打开的页面。旧面板 hash 书签优先（上面已处理）。
