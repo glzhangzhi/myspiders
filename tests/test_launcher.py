@@ -29,7 +29,9 @@ def _free_port() -> int:
 
 def test_shutdown_with_open_sse_connection_is_fast():
     port = _free_port()
-    env = {**os.environ, "BACKGROUND_TASKS_ENABLED": "false"}
+    # 真起一个服务进程：各功能的 on_load 照跑（BACKGROUND_TASKS_ENABLED 管不到它），会写库。
+    # 不换库就写进 .env 里的生产库 —— 2026-11-17 音声库「重建作品」就这样在跑 pytest 时改了生产数据。
+    env = {**os.environ, "BACKGROUND_TASKS_ENABLED": "false", "MONGO_DEFAULT_DB": "pytest_launcher_tmp"}
     proc = subprocess.Popen([sys.executable, "-m", "app", "--port", str(port)], cwd=ROOT, env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -52,6 +54,11 @@ def test_shutdown_with_open_sse_connection_is_fast():
     finally:
         if proc.poll() is None:
             proc.kill()
+        try:
+            from app.clients.mongo import get_mongo_client
+            get_mongo_client().drop_database("pytest_launcher_tmp")
+        except Exception:  # noqa: BLE001  没有 Mongo 的环境里 on_load 也起不来，这里不再添乱
+            pass
 
 
 def test_launcher_imports_sse_patch_before_uvicorn():
