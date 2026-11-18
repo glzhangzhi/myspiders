@@ -57,6 +57,14 @@ export function showZh(mode: ZhMode, streakBefore: number, answeredWrong: boolea
   return streakBefore < 2 || answeredWrong;
 }
 
+/**
+ * 答对后是否不等「下一题」直接跳：作答前已熟练到 auto 档会收起中文（streak ≥ 2，同一门槛，不看全局中文档位），
+ * 且没手动点「中」展开过 —— 点过说明这次还要借中文，留下来看。
+ */
+export function autoAdvance(streakBefore: number, correct: boolean, zhOpenedByHand: boolean): boolean {
+  return correct && streakBefore >= 2 && !zhOpenedByHand;
+}
+
 /** 选项是「Bild 1..4」或「1..4」（编号指向图里的标号）：打乱会让屏幕上的序号和图对不上，保持官方顺序。 */
 export function isNumberedOptions(q: Question): boolean {
   return q.de.options.every((o) => /^(Bild )?[1-4]$/.test(o.trim()));

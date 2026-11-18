@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countdown, optionOrder, requeue, showZh, shuffled, todayQueue, type Progress, type Question } from '../../pages/lid/logic';
+import { autoAdvance, countdown, optionOrder, requeue, showZh, shuffled, todayQueue, type Progress, type Question } from '../../pages/lid/logic';
 
 const q = (id: string): Question => ({
   id, n: 0, part: 'general', de: { q: '', options: ['a', 'b', 'c', 'd'] }, zh: { q: '', options: ['', '', '', ''] },
@@ -42,6 +42,12 @@ describe('lid logic', () => {
     expect(showZh('auto', 5, true)).toBe(true);
     expect(showZh('always', 9, false)).toBe(true);
     expect(showZh('never', 0, true)).toBe(false);
+  });
+  it('autoAdvance：熟练题答对直接跳，答错或手动展开过中文不跳', () => {
+    expect(autoAdvance(2, true, false)).toBe(true);
+    expect(autoAdvance(1, true, false)).toBe(false);
+    expect(autoAdvance(5, false, false)).toBe(false);
+    expect(autoAdvance(5, true, true)).toBe(false);
   });
   it('countdown', () => {
     expect(countdown(24)).toBe('24 天');

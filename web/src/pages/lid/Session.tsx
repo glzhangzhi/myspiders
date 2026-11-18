@@ -3,7 +3,10 @@ import { toastError } from '../../lib/toast';
 import { Empty } from '../../ui';
 import { QuestionCard } from './Card';
 import { byId, postAnswer, progressOf, qLabel, setStar, zhMode } from './data';
-import { optionOrder, requeue, showZh } from './logic';
+import { autoAdvance, optionOrder, requeue, showZh } from './logic';
+
+/** 自动跳题前停留多久：够看清是绿勾，又不用等。 */
+const AUTO_NEXT_MS = 450;
 
 interface Done { qid: string; correct: boolean }
 
@@ -28,6 +31,8 @@ export function Session(p: { title: string; ids: string[]; mode: string; onExit:
   const wrong = reveal && q !== undefined && chosen !== q.answer;
   const zh = zhOverride ?? showZh(zhMode.value, streak0, wrong);
   const starred = !!progressOf(qid)?.starred;
+  // 熟练题答对：不等点「下一题」，闪一下绿勾就跳（期间按 Enter / 点按钮照常；点「中」会取消）
+  const jump = autoAdvance(streak0, reveal && !wrong, zhOverride === true);
 
   const choose = async (oi: number) => {
     if (!q || reveal || busy) return;
@@ -48,6 +53,12 @@ export function Session(p: { title: string; ids: string[]; mode: string; onExit:
     else setPos(pos + 1);
     top.current?.scrollIntoView({ block: 'start' });
   };
+
+  useEffect(() => {
+    if (!jump) return;
+    const t = setTimeout(next, AUTO_NEXT_MS);
+    return () => clearTimeout(t);
+  }, [jump, pos]);
 
   const toggleZh = () => setZhOverride(!zh);
   const star = () => setStar(qid, !starred).catch(toastError);
