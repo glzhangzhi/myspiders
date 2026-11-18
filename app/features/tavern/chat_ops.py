@@ -42,6 +42,7 @@ import subprocess
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 import requests
 
@@ -138,31 +139,59 @@ class TavernChatOps:
     def __init__(self) -> None:
         self.http = TavernHttpClient()
 
-    # ── 保护：这份是不是可能正开着 ──
+    # ── 保护：这份是不是正开着 ──
 
     def _guard_active(self, path: Path) -> None:
-        """最近被写过的记录拒绝改动。
+        """酒馆此刻开着的那一份拒绝改动，其余一律放行。
 
-        判据是**文件 mtime**，不是卡内嵌的 chat 指针：后者是「下次默认打开
-        哪一份」的书签，每张聊过的卡都必然有一个，拿它当锁会误伤大批早已
-        不用的记录（模块级决策，见 settings.tavern_chat_lock_hours 的注释）。
+        判据见 `tavern_chats.open_chat()`：当前选中的卡（settings.json）+
+        那张卡的 chat 指针。只有这一份在酒馆内存里、会被自动保存写回来。
+
+        曾经的判据是「72 小时内写过就锁」，它既拦错又漏拦：刚聊完切走的
+        记录要白等三天；在酒馆里改名会把 mtime 刷成此刻，又多锁三天。
         """
-        hours = max(0, settings.tavern_chat_lock_hours)
-        if not hours:
-            return
-        try:
-            age = datetime.now(timezone.utc) - datetime.fromtimestamp(
-                path.stat().st_mtime, tz=timezone.utc
-            )
-        except OSError:
-            return
-        if age.total_seconds() < hours * 3600:
-            days = age.total_seconds() / 86400
-            when = f"{age.total_seconds()/3600:.1f} 小时前" if days < 1 else f"{days:.1f} 天前"
+        opened = tavern_chats.open_chat()   # 读不出来直接抛 —— 判不了就不放行
+        if opened and path.parent.name == opened["dir"] and path.stem == opened["chat"]:
             raise TavernOpError(
-                f"「{path.stem}」{when}还在写入，可能正开着 —— "
-                f"为免酒馆把它自动保存回来，{hours} 小时内的记录不允许删除或重命名。"
+                f"「{path.stem}」正在酒馆里开着 —— 直接删或改名会被酒馆的自动保存写回来。"
+                "请先在酒馆里切到别的会话或别的卡，再回来操作。"
             )
+
+    def _repoint_after(self, card_name: str, png: str, old_stem: str,
+                       new_stem: Optional[str]) -> None:
+        """动了某张卡的「默认会话」之后，把卡的 chat 指针跟着改掉。
+
+        酒馆自己删/改名默认会话时也会这么做（script.js 的 deleteCharacterChatByName
+        与 renameGroupOrCharacterChat）；我们走它的 HTTP API 只做了文件那一半。
+        不改的话下次打开这张卡，酒馆按旧指针找不到文件，会**静默新建一份只有
+        开场白的空会话**，看上去像记录丢了。
+
+        删除时的落点同酒馆：剩下记录里最近聊过的那份；一份不剩就照酒馆的格式
+        起一个新会话名（`<卡名> - YYYY-MM-DD@HHhMMmSSsMMMms`）。**不能留空**：
+        酒馆的 getOneCharacter 不补空指针，空名会被存成 `.jsonl` 隐藏文件。
+        写卡走酒馆的 `/api/characters/merge-attributes`，不越过它写 PNG。
+        """
+        if tavern_catalog.chat_pointer(png) != old_stem:
+            return
+        if new_stem is None:
+            rest = sorted(
+                (tavern_chats.chats_root / Path(png).stem).glob("*.jsonl"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if rest:
+                new_stem = rest[0].stem
+            else:
+                now = datetime.now(timezone.utc)
+                new_stem = (f"{card_name} - {now:%Y-%m-%d@%Hh%Mm%S}s"
+                            f"{now.microsecond // 1000:03d}ms")
+        try:
+            self.http.post("/api/characters/merge-attributes",
+                           {"avatar": png, "chat": new_stem})
+        except TavernOpError as exc:
+            # 记录本身已经删/改好了，指针没跟上只是下次打开会新起一份，
+            # 不该让用户以为操作失败；记日志备查
+            logger.warning("更新卡 %s 的 chat 指针失败: %s", png, exc)
 
     # ── 重命名 ──
 
@@ -193,28 +222,27 @@ class TavernChatOps:
             raise TavernOpError(f"这张卡下已经有叫「{new_title}」的记录了")
 
         # 原 mtime 要留着：酒馆的 rename 是 copyFileSync + unlink，新文件的
-        # mtime 变成「此刻」。不还原的话有两个后果，都在实测中出现过：
-        #   1. 刚改完名的记录立刻落进 _guard_active 的保护窗口，删不掉 ——
-        #      而「整理时顺手改名，发现没用就删」正是最自然的工作流；
-        #   2. 列表里「最后修改」一列变成改名时间，按「多久没聊了」排序失效。
-        # mtime 不是酒馆的状态（它只按内存里的消息数组重写**内容**），
-        # 所以还原时间戳不构成「越过酒馆写文件」。
+        # mtime 变成「此刻」，列表里「最后修改」一列就成了改名时间，按「多久
+        # 没聊了」排序失效。mtime 不是酒馆的状态（它只按内存里的消息数组重写
+        # **内容**），所以还原时间戳不构成「越过酒馆写文件」。
         try:
             st = path.stat()
             times = (st.st_atime, st.st_mtime)
         except OSError:
             times = None
 
+        png = _avatar_of(card_name)
         with _ops_lock:
             self.http.post(
                 "/api/chats/rename",
                 {
                     "is_group": False,
-                    "avatar_url": _avatar_of(card_name),
+                    "avatar_url": png,
                     "original_file": file_name,
                     "renamed_file": f"{new_title}.jsonl",
                 },
             )
+            self._repoint_after(card_name, png, path.stem, new_title)
             if times and target.exists():
                 try:
                     os.utime(target, times)
@@ -249,11 +277,13 @@ class TavernChatOps:
                 path = tavern_chats._chat_path(card, fname)
                 self._guard_active(path)
                 size = path.stat().st_size
+                png = _avatar_of(card)
                 with _ops_lock:
                     self.http.post(
                         "/api/chats/delete",
-                        {"avatar_url": _avatar_of(card), "chatfile": fname},
+                        {"avatar_url": png, "chatfile": fname},
                     )
+                    self._repoint_after(card, png, path.stem, None)
                 done.append({"card": card, "file": fname, "size": size})
             except (TavernOpError, TavernChatError) as exc:
                 failed.append({"card": card, "file": fname, "error": str(exc)})
@@ -331,7 +361,6 @@ class TavernChatOps:
         info: dict = {
             "base": self.http.base,
             "remote": settings.tavern_chat_remote,
-            "lock_hours": settings.tavern_chat_lock_hours,
         }
         try:
             self.http._open()

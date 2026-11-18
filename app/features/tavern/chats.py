@@ -149,6 +149,45 @@ class TavernChatService:
             raise TavernChatError("聊天记录不存在")
         return target
 
+    # ── 酒馆里此刻开着哪一份 ──
+
+    def open_chat(self) -> Optional[dict]:
+        """酒馆此刻开着的那份聊天：`{"dir": PNG 文件名去后缀, "chat": 文件名去 .jsonl}`。
+
+        酒馆把这件事分两处存在磁盘上，合起来唯一确定：
+          1. `settings.json` 的 `active_character` = 当前选中的卡（PNG 文件名）。
+             点卡列表就 `saveSettingsDebounced()`（RossAscends-mods.js），1 秒内落盘。
+          2. 那张卡内嵌的 `chat` = 这张卡正开着哪份。切换/新建会话都会
+             `createOrEditCharacter()` 把卡写回（script.js openCharacterChat）。
+        只有这一份在酒馆内存里、会被自动保存写回；其余记录都可以动。
+
+        没选卡 / 选的是群聊 → None（没有角色聊天开着）。
+        **读不出来就抛错而不是返回 None**：调用方据此拒绝写操作 ——
+        判不出哪份开着时，放行的代价是记录被写回，拒绝的代价只是重试。
+
+        局限：settings.json 只记「最后一次在哪台设备上选了哪张卡」。两台设备
+        同时开着不同的卡时，只认得出后选的那张。机主的用法是换设备先刷新页面
+        （刷新会按 active_character 重新打开），这条局限就不成立。
+        """
+        path = Path(settings.tavern_data_dir).expanduser() / settings.tavern_user / "settings.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise TavernChatError(f"读不到酒馆的 settings.json，判断不了哪份正开着：{exc}") from exc
+        if data.get("active_group"):
+            return None
+        avatar = data.get("active_character")
+        if not avatar:
+            return None
+        if not isinstance(avatar, str) or not avatar.endswith(".png") or "/" in avatar:
+            # 老版本酒馆存过数字下标；认不出就别猜
+            raise TavernChatError(f"认不出酒馆当前选中的卡（active_character={avatar!r}）")
+        chat = tavern_catalog.chat_pointer(avatar)
+        if not chat:
+            # 卡在但没有指针：酒馆打开它时会现起一份新会话名，此刻磁盘上没有对应文件
+            return None
+        return {"dir": Path(avatar).stem, "chat": chat}
+
     # ── 列表 ──
 
     def list_chats(self, name: str) -> dict:
@@ -196,7 +235,7 @@ class TavernChatService:
         `catalog.exists()` 先重扫一遍，这里再来一次就是每条两次全量扫描 ——
         显示一个份数不值这个代价，缓存里查不到就当 0。
         """
-        groups = self.overview().get("cards", [])
+        groups = self._scan_cached().get("cards", [])
         for g in groups:
             if g["name"] == name:
                 return len(g["chats"])
@@ -211,10 +250,25 @@ class TavernChatService:
         实测 112 份、5620 行全量 JSON 解析 0.22 秒，比只数行贵一个数量级但
         绝对值仍很小，故不做增量，只按 mtime 缓存整体结果。
 
-        `is_current` 标出酒馆当前会话（卡内嵌 `chat` 指针指向的那份）：
-        这一份禁止删除/重命名，酒馆的自动保存会把它写回来。
+        `is_current` 标出卡内嵌 `chat` 指针指向的那份（「默认会话」，下次打开
+        这张卡时载入它）。它只是书签，不是锁；真正锁住的是 `open_chat()`。
         """
-        key = self._mtime_key()
+        # 「酒馆此刻开着哪份」每次现读、不进缓存：切卡只改 settings.json，
+        # 不动任何一个缓存键。代价是解析一次 settings.json（2.6MB，约 30ms），
+        # 所以只在这里读，count_chats 这类逐条调用的走 _scan_cached。
+        out = dict(self._scan_cached(force=force))
+        try:
+            out["open"] = self.open_chat()
+        except TavernChatError as exc:
+            out["open"] = None
+            out["open_error"] = str(exc)
+        return out
+
+    def _scan_cached(self, *, force: bool = False) -> dict:
+        # 卡的 chat 指针变了不动 chats 目录，只动 characters 目录（酒馆整卡
+        # 原子重写 = 临时文件 + rename），所以 catalog 的 key 也要并进来，
+        # 否则「默认会话」标记会停在旧的那份上
+        key = (self._mtime_key(), tavern_catalog._mtime_key())
         with self._lock:
             if not force and self._cache is not None and self._cache_key == key:
                 return self._cache
@@ -285,7 +339,7 @@ class TavernChatService:
                     "modified": _iso(st.st_mtime),
                     "messages": total,
                     "user_messages": user,
-                    # 酒馆当前会话：禁止删除/重命名的那一份
+                    # 默认会话（卡的 chat 指针）：只做标记，不锁
                     "is_current": current is not None and path.stem == current,
                 }
                 chats.append(row)

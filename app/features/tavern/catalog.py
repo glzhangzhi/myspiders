@@ -254,6 +254,18 @@ class TavernCatalog:
         scored.sort(key=lambda t: (t[0], t[1], t[2]))
         return [item.as_dict() for *_rest, item in scored[: max(1, limit)]]
 
+    def chat_pointer(self, png_name: str) -> Optional[str]:
+        """直接读一张卡此刻的 chat 指针，不走缓存。
+
+        用在「这一份能不能动」的判定上：缓存键是目录 mtime，虽然酒馆整卡是
+        原子重写（会动目录 mtime），但锁的判据宁可每次现读一张卡（毫秒级），
+        也不赌缓存一定跟得上。
+        """
+        path = self._dirs()[TYPE_CHARACTER] / png_name
+        if path.parent != self._dirs()[TYPE_CHARACTER] or not path.is_file():
+            return None
+        return _read_png_card_meta(path)[1]
+
     def exists(self, name: str, type_name: str) -> bool:
         """酒馆里是否真有这个名字的这类资料 —— 加管理项前用它挡住手滑打错。
 

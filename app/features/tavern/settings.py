@@ -27,10 +27,7 @@ class TavernSettings(BaseModel):
     tavern_http_timeout: int = 20
     # 聊天记录异地归档目标。原始 jsonl 原样上传，可直接导回酒馆。
     tavern_chat_remote: str = "google drive:myspiders-backup/sillytavern/chats"
-    # 「这份记录可能正开着」的判据：最近多少小时内被写过就拒绝删除/重命名。
-    # 判据用**文件 mtime** 而不是卡内嵌的 chat 指针 —— 后者是「下次默认打开
-    # 哪一份」的书签，每张聊过的卡都必然有一个（实测 112 份记录里命中 72 份），
-    # 拿它当锁会把 7 份该清理的空记录拦掉 5 份。mtime 直接对应「酒馆正在写」。
-    # 实测本机记录的新鲜度是断层分布：3 天内 2 份，然后直接跳到 7–30 天前 108 份，
-    # 故 72 小时这条线落在天然空隙上，既有余量又零误伤。
-    tavern_chat_lock_hours: int = 72
+    # 「哪份正开着、不许删改」没有配置项：直接读酒馆的 settings.json
+    # （active_character）+ 那张卡的 chat 指针，见 tavern_chats.open_chat()。
+    # 曾经的 tavern_chat_lock_hours（N 小时内写过就锁）已撤掉，环境变量里
+    # 留着也不再生效。

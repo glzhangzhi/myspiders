@@ -908,7 +908,16 @@ let cmSort = { by: 'user_messages', asc: true };  // 默认把「我一句没说
   if (['card', 'title', 'messages', 'user_messages', 'size', 'modified'].includes(by))
     cmSort = { by: by, asc: dir === 'asc' };
 }
-let cmOps = { reachable: false, lock_hours: 72, remote: '' };
+let cmOps = { reachable: false, remote: '' };
+
+// 酒馆此刻开着的那一份（overview.open = {dir, chat}，后端每次现读 settings.json
+// 的 active_character + 那张卡的 chat 指针）。只有它会被酒馆的自动保存写回来，
+// 所以只锁它；其余记录随便删改。判断不了（open_error）时整体不让写。
+function cmIsOpen(r) {
+  const o = overview && overview.open;
+  return !!o && r.dir === o.dir && r.title === o.chat;
+}
+function cmWritable() { return cmOps.reachable && !(overview && overview.open_error); }
 
 // 一份记录的唯一键。卡名 + 文件名 —— 不同卡下可以有同名文件。
 function cmKey(r) { return r.card + '\u0000' + r.file; }
@@ -938,14 +947,22 @@ async function loadOverview(refresh) {
     (t.never_replied ? '<span class="cm-zero">「我一句没说」' + t.never_replied + ' 份</span>' : '') +
     '<span style="color:var(--grey)">另有 ' + (t.cards_never_chatted || 0) + ' 张卡从没聊过</span>';
   if (refresh) toast('已重新扫描聊天记录', 'ok');
+  renderOpsState();
   renderOverview();
 }
 
 async function loadOpsStatus() {
   try { cmOps = await api('GET', '/api/tavern/chats/ops-status'); }
-  catch (e) { cmOps = { reachable: false, error: e.message, lock_hours: 72 }; }
+  catch (e) { cmOps = { reachable: false, error: e.message }; }
+  renderOpsState();
+}
+
+function renderOpsState() {
   const el = document.getElementById('cm-ops-state');
-  if (cmOps.reachable) {
+  if (cmOps.reachable && overview && overview.open_error) {
+    el.innerHTML = '<span class="badge warn">判断不了哪份开着</span>';
+    el.title = '重命名与删除暂不可用：' + overview.open_error;
+  } else if (cmOps.reachable) {
     el.innerHTML = '<span class="badge ok">酒馆可写</span>';
     el.title = '重命名/删除走酒馆 API：' + cmOps.base;
   } else {
@@ -1126,6 +1143,16 @@ function cmRow(r, grouped) {
     tdName.appendChild(document.createTextNode(' '));
     tdName.appendChild(b);
   }
+  const isOpen = cmIsOpen(r);
+  if (isOpen) {
+    const b = document.createElement('span');
+    b.className = 'badge warn';
+    b.textContent = '🔒 酒馆里正开着';
+    b.title = '酒馆内存里就是这一份，删或改名会被它的自动保存写回来。\n' +
+              '在酒馆里切到别的会话或别的卡后，回到这个页面就会解锁。';
+    tdName.appendChild(document.createTextNode(' '));
+    tdName.appendChild(b);
+  }
   tr.appendChild(tdName);
 
   // ④ 楼层 ⑤ 我说了 ⑥ 大小 ⑦ 时间
@@ -1167,8 +1194,9 @@ function cmRow(r, grouped) {
   const rn = document.createElement('button');
   rn.className = 'btn btn-sm';
   rn.textContent = '✏️';
-  rn.title = cmOps.reachable ? '重命名' : '酒馆不可达，无法重命名';
-  rn.disabled = !cmOps.reachable;
+  rn.title = isOpen ? '正在酒馆里开着，先在酒馆里切走' :
+             cmWritable() ? '重命名' : '酒馆不可达或判断不了哪份开着，无法重命名';
+  rn.disabled = isOpen || !cmWritable();
   rn.addEventListener('click', () => renameChat(r));
   tdActs.appendChild(rn);
 
@@ -1213,9 +1241,12 @@ function cmSelBar() {
 
     const del = document.createElement('button');
     del.className = 'btn btn-sm btn-danger';
-    del.textContent = '🗑 删除';
-    del.disabled = !cmOps.reachable;
-    del.title = cmOps.reachable ? '不可恢复' : '酒馆不可达，无法删除';
+    const deletable = picked.filter(r => !cmIsOpen(r)).length;
+    del.textContent = '🗑 删除' + (deletable < n ? '（' + deletable + ' 份）' : '');
+    del.disabled = !cmWritable() || !deletable;
+    del.title = !cmWritable() ? '酒馆不可达或判断不了哪份开着，无法删除' :
+                !deletable ? '选中的这份正在酒馆里开着' :
+                deletable < n ? '正在酒馆里开着的那份会跳过；删除不可恢复' : '不可恢复';
     del.addEventListener('click', () => deleteSelected(del));
     bar.appendChild(del);
   }
@@ -1263,14 +1294,16 @@ async function syncSelected(btn) {
 }
 
 async function deleteSelected(btn) {
-  const picked = cmRows.filter(r => cmSel.has(cmKey(r)));
+  const skipped = cmRows.filter(r => cmSel.has(cmKey(r)) && cmIsOpen(r));
+  const picked = cmRows.filter(r => cmSel.has(cmKey(r)) && !cmIsOpen(r));
   if (!picked.length) return;
   // 删除不可恢复，所以把要删的东西原样列给用户看，而不只给个数字
   const list = picked.slice(0, 20)
     .map(r => '· ' + r.card + ' / ' + r.title + '（' + r.messages + ' 层，我说了 ' + r.user_messages + ' 句）')
     .join('\n');
   const more = picked.length > 20 ? '\n…以及另外 ' + (picked.length - 20) + ' 份' : '';
-  if (!confirm('确定删除以下 ' + picked.length + ' 份聊天记录？\n\n' + list + more +
+  const skip = skipped.length ? '\n\n（「' + skipped[0].title + '」正在酒馆里开着，跳过）' : '';
+  if (!confirm('确定删除以下 ' + picked.length + ' 份聊天记录？\n\n' + list + more + skip +
                '\n\n⚠️ 删除后无法恢复。要留底请先「☁ 同步到网盘」。')) return;
 
   btn.disabled = true;
@@ -1286,7 +1319,7 @@ async function deleteSelected(btn) {
       showOut('以下记录未被删除：\n' +
         (d.failed || []).map(f => '✗ ' + f.card + ' / ' + f.file + '\n   ' + f.error).join('\n'), 'err');
     }
-    cmSel.clear();
+    picked.forEach(r => cmSel.delete(cmKey(r)));
     await loadOverview(false);
     await loadEntries();     // 管理列表里的「💬 份数」跟着变
   } catch (e) {
@@ -1351,6 +1384,12 @@ async function init() {
 }
 
 init();
+
+// 在酒馆里切了会话再切回这个页面，🔒 要跟着挪 —— 回到可见时重拉一次总表
+// （后端按 mtime 缓存，没变化时只多读一次 settings.json）
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && overview) loadOverview(false);
+});
 </script>
 </body>
 </html>
