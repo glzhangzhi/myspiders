@@ -43,6 +43,9 @@ export interface PlayerState {
 /** 播放条右侧的附加按钮（功能页放进来，比如「播放队列」）。播放条不认识它是什么。 */
 export const playerExtra = signal<ComponentType | null>(null);
 
+/** 常驻：没有轨道时播放条也不收起（显示空闲态 + 附加按钮）。功能页进入时设 true、离开时设 false。 */
+export const playerPinned = signal(false);
+
 export const player = signal<PlayerState>({ track: null, playing: false, pos: 0, dur: 0, loading: false, error: null });
 
 const SAVE_EVERY_MS = 5000;
@@ -66,13 +69,18 @@ function save(force = false) {
 }
 
 // ── 下一条（功能页交进来；播放器不维护列表）──
-let nextFn: (() => void) | null = null;
+/** user = 机主在页面上点的（空闲态的 ▶）：可以弹确认框；听完自动接、锁屏「下一首」都是 false（可能正锁屏）。 */
+type NextFn = (o: { user: boolean }) => void;
+let nextFn: NextFn | null = null;
+/** 有没有「下一条」：空闲态的 ▶ 据此决定能不能点。 */
+export const hasNext = signal(false);
 
 /** 设置「下一条」回调：听完自动调、锁屏「下一首」按钮也调它。传 null 取消（听完就停）。 */
-export function setNext(fn: (() => void) | null) {
+export function setNext(fn: NextFn | null) {
   nextFn = fn;
+  hasNext.value = !!fn;
   if (!('mediaSession' in navigator)) return;
-  try { navigator.mediaSession.setActionHandler('nexttrack', fn ? () => nextFn?.() : null); } catch { /* 不支持 */ }
+  try { navigator.mediaSession.setActionHandler('nexttrack', fn ? () => nextFn?.({ user: false }) : null); } catch { /* 不支持 */ }
 }
 
 function el(): HTMLAudioElement {
@@ -85,7 +93,7 @@ function el(): HTMLAudioElement {
   a.addEventListener('pause', () => { set({ playing: false }); setMs('paused'); save(true); });
   a.addEventListener('waiting', () => set({ loading: true }));
   a.addEventListener('canplay', () => set({ loading: false }));
-  a.addEventListener('ended', () => { set({ playing: false }); save(true); nextFn?.(); });
+  a.addEventListener('ended', () => { set({ playing: false }); save(true); nextFn?.({ user: false }); });
   a.addEventListener('error', () => set({ loading: false, playing: false, error: '播放失败（文件可能已被清理，重新点一次会重新下载）' }));
   audio = a;
   installMediaSession();
@@ -148,7 +156,8 @@ export function play(t: Track) {
 export function toggle() {
   const a = el();
   const t = player.value.track;
-  if (!t) return;
+  // 没有轨道（常驻的空闲态）：▶ = 播「下一条」（功能页决定是哪条，比如播放队列里第一条没听完的）
+  if (!t) { nextFn?.({ user: true }); return; }
   if (!a.paused) { a.pause(); return; }
   if (!t.syncPos) { void a.play(); return; }
   // 继续播之前对一下别的设备的进度。play() 要在点击的同一个任务里调才算用户手势（Safari 很严）：

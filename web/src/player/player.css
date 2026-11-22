@@ -29,3 +29,5 @@
   -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); margin-top: -6px; border: 0;
 }
 .player-seek input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 0; }
+.player-btn:disabled { color: var(--text-dim); opacity: .45; cursor: default; background: none; }
+.player-btn.main:disabled { background: var(--surface2); color: var(--text-dim); opacity: 1; }

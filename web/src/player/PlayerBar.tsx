@@ -1,14 +1,14 @@
 import { useRef, useState } from 'preact/hooks';
-import { fmtClock, player, playerExtra, seek, seekBy, stop, toggle } from './player';
+import { fmtClock, hasNext, player, playerExtra, playerPinned, seek, seekBy, stop, toggle } from './player';
 import './player.css';
 
-/** 外壳层的全局播放条：没有轨道时不渲染。拖动时只改显示，松手才 seek（手机上拖动更稳）。 */
+/** 外壳层的全局播放条：没有轨道时不渲染（功能页设了 playerPinned 时显示空闲态）。拖动时只改显示，松手才 seek（手机上拖动更稳）。 */
 export function PlayerBar() {
   const s = player.value;
   const [drag, setDrag] = useState<number | null>(null);
   const bar = useRef<HTMLInputElement>(null);
   const Extra = playerExtra.value;
-  if (!s.track) return null;
+  if (!s.track) return playerPinned.value ? <IdleBar /> : null;
   const dur = s.dur || s.track.duration || 0;
   const pos = drag ?? s.pos;
   return (
@@ -33,6 +33,26 @@ export function PlayerBar() {
           onInput={(e) => setDrag(Number((e.target as HTMLInputElement).value))}
           onChange={(e) => { seek(Number((e.target as HTMLInputElement).value)); setDrag(null); }} />
         <span>{fmtClock(dur)}</span>
+      </div>
+    </div>
+  );
+}
+
+/** 常驻的空闲态：没在播。▶ 交给功能页的「下一条」（没有就灰掉），附加按钮（播放队列）照常在。 */
+function IdleBar() {
+  const Extra = playerExtra.value;
+  const next = hasNext.value;
+  return (
+    <div class="player idle" role="region" aria-label="播放器">
+      <div class="player-row">
+        <div class="player-meta">
+          <div class="player-title">没在播放</div>
+          <div class="player-artist">{next ? '点 ▶ 接着播' : '在列表里点 ▶ 开始听'}</div>
+        </div>
+        <button class="player-btn" disabled aria-label="后退 15 秒">↺<small>15</small></button>
+        <button class="player-btn main" disabled={!next} onClick={toggle} aria-label="播放下一条">▶</button>
+        <button class="player-btn" disabled aria-label="快进 30 秒">↻<small>30</small></button>
+        {Extra && <Extra />}
       </div>
     </div>
   );
