@@ -177,6 +177,8 @@ FILE_EXCLUDES = [
     # （2026-10-31 恢复到 free-arm 时才发现它们一起被排除了）。真正可重建的
     # 只有它的 node_modules，上面那条规则已经覆盖。
     "*.log", "access.log",
+    # jobhunt 运行中的库，可能读到写了一半的状态；data/backup/ 里有它自己写的一致快照
+    "jobhunt/data/jobs.db",
 ]
 
 
