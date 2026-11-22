@@ -19,6 +19,8 @@ import { Empty, Skeleton } from './ui';
 
 // 入籍考试页体积较大、只在手机刷题时打开：按需加载，不进首屏包
 const LidPage = lazy(() => import('./pages/Lid').then((m) => m.LidPage));
+// 机票面板同理：偶尔才用，按需加载
+const FlightsPage = lazy(() => import('./pages/Flights').then((m) => m.FlightsPage));
 
 // 私有原生页面（web/src/private/<id>/index.tsx，导出 `Page`）：公开仓库没有这个目录，
 // glob 结果为空也照常构建 —— 所以这里不许静态 import 私有路径。按需加载，不进首屏包。
@@ -28,7 +30,7 @@ const PRIVATE_PAGES = Object.fromEntries(
 );
 
 const NATIVE_PAGES: Record<string, () => preact.JSX.Element> = {
-  health: SystemPage, nintendo: NintendoPage, qimen: QimenPage, claude_usage: ClaudeUsagePage, lid: LidPage,
+  health: SystemPage, nintendo: NintendoPage, qimen: QimenPage, claude_usage: ClaudeUsagePage, lid: LidPage, flights: FlightsPage,
   ...PRIVATE_PAGES,
 };
 const DEFAULT = 'health';
