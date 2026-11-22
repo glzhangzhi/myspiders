@@ -160,6 +160,10 @@ FILE_SOURCES: list[tuple[str, str]] = [
     # sqlite3 .backup 写到 backup/。cache.db 不备 —— 消息只留 72 小时，丢了只是少几条旧通知。
     ("ntfy-auth", "/root/ntfy/backup"),
     ("ntfy-compose", "/root/ntfy/docker-compose.yml"),
+    # 求职工具 jobhunt（2026-11-22 新增）：代码 + data/。投递快照（投出去的简历、表单里
+    # 填过的期望薪资）丢了无法重建。它每天 07:00 Berlin 跑完后用 sqlite3 .backup 写一份
+    # 一致快照到 data/backup/，与本任务的运行时间错开；.venv 由上面的排除规则跳过。
+    ("jobhunt", "/root/jobhunt"),
 ]
 FILE_EXCLUDES = [
     "node_modules", ".venv", "__pycache__", "*.pyc",
